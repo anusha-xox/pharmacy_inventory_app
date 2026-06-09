@@ -1104,7 +1104,7 @@ async function loadBillingMedicines() {
         <div class="item" onclick="selectMed(${m.medicine_id})">
           <div>
             <b>${m.name} ${m.strength || ""}</b>
-            <p>${m.category || ""}<br/>${money(m.unit_price)}</p>
+            <p>${m.category || ""}</p>
           </div>
           <span class="pill">Stock: ${m.total_stock}</span>
         </div>
@@ -1132,13 +1132,16 @@ async function selectMed(id) {
         <b>${selected.name} ${selected.strength || ""}</b>
         <p>
           ${selected.category || ""}<br/>
-          Price: ${money(selected.unit_price)} • Stock: ${selected.total_stock}
+          Stock: ${selected.total_stock}
         </p>
       </div>
     `;
   }
 
   const batches = await api(`/api/medicines/${id}/batches`);
+  
+  // Store batches for price calculation
+  selected.batches = batches;
 
   if ($("billBatch")) {
     $("billBatch").innerHTML =
@@ -1146,25 +1149,90 @@ async function selectMed(id) {
       batches
         .map(
           b => `
-        <option value="${b.batch_id}">
+        <option value="${b.batch_id}" data-price="${b.unit_price}">
           ${b.batch_no} • Exp ${b.expiry_date} • Available ${b.quantity_available}
         </option>
       `
         )
         .join("");
+    
+    // Add event listener to update price when batch changes
+    $("billBatch").onchange = updateBillPrice;
   }
 
   if ($("billQty")) {
     $("billQty").value = 1;
+    // Add event listener to update price when quantity changes
+    $("billQty").oninput = updateBillPrice;
   }
 
+  // Initial price update
+  updateBillPrice();
+
   go("addBillPage");
+}
+
+function updateBillPrice() {
+  if (!selected || !selected.batches) return;
+  
+  const batchSelect = $("billBatch");
+  const qtyInput = $("billQty");
+  
+  if (!batchSelect || !qtyInput) return;
+  
+  const quantity = +qtyInput.value || 1;
+  let totalPrice = 0;
+  let priceText = "";
+  
+  if (batchSelect.value) {
+    // Specific batch selected
+    const selectedOption = batchSelect.selectedOptions[0];
+    const unitPrice = +selectedOption.getAttribute("data-price") || 0;
+    totalPrice = unitPrice * quantity;
+    priceText = `Unit Price: ${money(unitPrice)} • Total: ${money(totalPrice)}`;
+  } else {
+    // Auto FEFO - calculate from earliest expiry batches
+    let remainingQty = quantity;
+    const batches = [...selected.batches].sort((a, b) =>
+      new Date(a.expiry_date) - new Date(b.expiry_date)
+    );
+    
+    for (const batch of batches) {
+      if (remainingQty <= 0) break;
+      const qtyFromBatch = Math.min(remainingQty, batch.quantity_available);
+      totalPrice += qtyFromBatch * batch.unit_price;
+      remainingQty -= qtyFromBatch;
+    }
+    
+    const avgPrice = quantity > 0 ? totalPrice / quantity : 0;
+    priceText = `Avg Price: ${money(avgPrice)} • Total: ${money(totalPrice)}`;
+  }
+  
+  // Update or create price display
+  let priceDisplay = $("billPriceDisplay");
+  if (!priceDisplay) {
+    priceDisplay = document.createElement("div");
+    priceDisplay.id = "billPriceDisplay";
+    priceDisplay.className = "card";
+    priceDisplay.style.marginTop = "10px";
+    priceDisplay.style.padding = "10px";
+    priceDisplay.style.backgroundColor = "#f0f9ff";
+    priceDisplay.style.borderLeft = "3px solid #3b82f6";
+    
+    const qtyDiv = document.querySelector(".qty");
+    if (qtyDiv && qtyDiv.parentNode) {
+      qtyDiv.parentNode.insertBefore(priceDisplay, qtyDiv.nextSibling);
+    }
+  }
+  
+  priceDisplay.innerHTML = `<p style="margin: 0; color: #1e40af; font-weight: 500;">${priceText}</p>`;
 }
 
 function stepQty(n) {
   if (!$("billQty")) return;
 
   $("billQty").value = Math.max(1, +$("billQty").value + n);
+  updateBillPrice();
 }
 
 function addToCart() {
