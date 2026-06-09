@@ -1243,12 +1243,37 @@ function addToCart() {
 
   const qty = +$("billQty").value;
   const batch_id = $("billBatch").value ? +$("billBatch").value : null;
+  
+  // Calculate unit price based on selected batch or FEFO
+  let unit_price = 0;
+  if (batch_id) {
+    // Specific batch selected - get its price
+    const batch = selected.batches.find(b => b.batch_id === batch_id);
+    unit_price = batch ? batch.unit_price : 0;
+  } else {
+    // Auto FEFO - calculate average price from earliest expiry batches
+    let remainingQty = qty;
+    let totalPrice = 0;
+    const batches = [...selected.batches].sort((a, b) =>
+      new Date(a.expiry_date) - new Date(b.expiry_date)
+    );
+    
+    for (const batch of batches) {
+      if (remainingQty <= 0) break;
+      const qtyFromBatch = Math.min(remainingQty, batch.quantity_available);
+      totalPrice += qtyFromBatch * batch.unit_price;
+      remainingQty -= qtyFromBatch;
+    }
+    
+    unit_price = qty > 0 ? totalPrice / qty : 0;
+  }
 
   cart.push({
     ...selected,
     quantity: qty,
     batch_id,
-    batch_label: $("billBatch").selectedOptions[0].text
+    batch_label: $("billBatch").selectedOptions[0].text,
+    unit_price: unit_price
   });
 
   toast("Added to cart");

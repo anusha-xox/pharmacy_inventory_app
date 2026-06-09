@@ -477,12 +477,140 @@ def reports():
     }
 
 
-def bill_email_body(b):
+def bill_email_body_text(b):
+    """Plain text version for email clients that don't support HTML"""
     lines=[f"Bill No: {b['bill_no']}", f"Customer: {b.get('customer_name') or 'Walk-in Customer'}", f"Date: {b['created_at']}", f"Payment: {b['payment_method']}", "", "Items:"]
     for i in b["items"]:
         lines.append(f"- {i['name']} {i.get('strength') or ''} | Batch {i['batch_no']} | Qty {i['quantity']} | ₹{i['unit_price']:.2f} | ₹{i['line_total']:.2f}")
     lines += ["", f"Subtotal: ₹{b['subtotal']:.2f}", f"Discount: ₹{b['discount']:.2f}", f"Total: ₹{b['total_amount']:.2f}", "", "Thank you."]
     return "\n".join(lines)
+
+def bill_email_body_html(b):
+    """Beautiful HTML email template"""
+    items_html = ""
+    for i in b["items"]:
+        items_html += f"""
+        <tr>
+            <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
+                <strong>{i['name']} {i.get('strength') or ''}</strong><br>
+                <span style="color: #6b7280; font-size: 13px;">Batch: {i['batch_no']}</span>
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">{i['quantity']}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">₹{i['unit_price']:.2f}</td>
+            <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;"><strong>₹{i['line_total']:.2f}</strong></td>
+        </tr>
+        """
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+            <tr>
+                <td align="center">
+                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chandra Hi-Tech ENT Hospital</h1>
+                                <p style="margin: 10px 0 0 0; color: #dbeafe; font-size: 14px;">Pharmacy Invoice</p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Bill Info -->
+                        <tr>
+                            <td style="padding: 30px;">
+                                <table width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding-bottom: 20px;">
+                                            <div style="background-color: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 4px;">
+                                                <table width="100%" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td style="padding: 5px 0;">
+                                                            <span style="color: #6b7280; font-size: 13px;">Bill Number</span><br>
+                                                            <strong style="color: #1f2937; font-size: 16px;">{b['bill_no']}</strong>
+                                                        </td>
+                                                        <td style="padding: 5px 0; text-align: right;">
+                                                            <span style="color: #6b7280; font-size: 13px;">Date</span><br>
+                                                            <strong style="color: #1f2937; font-size: 16px;">{b['created_at']}</strong>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding: 10px 0 5px 0;">
+                                                            <span style="color: #6b7280; font-size: 13px;">Customer</span><br>
+                                                            <strong style="color: #1f2937; font-size: 16px;">{b.get('customer_name') or 'Walk-in Customer'}</strong>
+                                                        </td>
+                                                        <td style="padding: 10px 0 5px 0; text-align: right;">
+                                                            <span style="color: #6b7280; font-size: 13px;">Payment Method</span><br>
+                                                            <strong style="color: #1f2937; font-size: 16px;">{b['payment_method']}</strong>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <!-- Items Table -->
+                                <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                                    <thead>
+                                        <tr style="background-color: #f9fafb;">
+                                            <th style="padding: 12px; text-align: left; color: #374151; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Item</th>
+                                            <th style="padding: 12px; text-align: center; color: #374151; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Qty</th>
+                                            <th style="padding: 12px; text-align: right; color: #374151; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Price</th>
+                                            <th style="padding: 12px; text-align: right; color: #374151; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {items_html}
+                                    </tbody>
+                                </table>
+                                
+                                <!-- Totals -->
+                                <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                                    <tr>
+                                        <td style="padding: 8px 0; text-align: right; color: #6b7280;">Subtotal:</td>
+                                        <td style="padding: 8px 0; text-align: right; width: 120px; color: #1f2937; font-weight: 500;">₹{b['subtotal']:.2f}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0; text-align: right; color: #6b7280;">Discount:</td>
+                                        <td style="padding: 8px 0; text-align: right; color: #dc2626; font-weight: 500;">- ₹{b['discount']:.2f}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 15px 0 0 0; text-align: right; border-top: 2px solid #e5e7eb; color: #1f2937; font-size: 18px; font-weight: 600;">Total Amount:</td>
+                                        <td style="padding: 15px 0 0 0; text-align: right; border-top: 2px solid #e5e7eb; color: #3b82f6; font-size: 20px; font-weight: 700;">₹{b['total_amount']:.2f}</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0 0 10px 0; color: #1f2937; font-size: 16px; font-weight: 500;">Thank you for your purchase!</p>
+                                <p style="margin: 0; color: #6b7280; font-size: 13px;">For any queries, please contact us at the hospital pharmacy.</p>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Email Footer -->
+                    <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                        <tr>
+                            <td style="text-align: center; color: #9ca3af; font-size: 12px; padding: 20px;">
+                                <p style="margin: 0;">This is an automated email from Chandra Hi-Tech ENT Hospital Pharmacy System.</p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
 
 @app.post("/api/bills/{bill_id}/email")
 def email_bill(bill_id:int, payload:EmailBillIn):
@@ -492,7 +620,11 @@ def email_bill(bill_id:int, payload:EmailBillIn):
     smtp_username=payload.smtp_username or os.getenv("SMTP_USERNAME")
     smtp_password=payload.smtp_password or os.getenv("SMTP_PASSWORD")
     if not smtp_username or not smtp_password: raise HTTPException(400,"SMTP credentials missing. Set SMTP_USERNAME and SMTP_PASSWORD or enter them in the app.")
-    msg=EmailMessage(); msg["Subject"]=f"Pharmacy Bill {b['bill_no']}"; msg["From"]=smtp_username; msg["To"]=payload.to_email; msg.set_content(bill_email_body(b))
+    msg=EmailMessage(); msg["Subject"]=f"Pharmacy Bill {b['bill_no']}"; msg["From"]=smtp_username; msg["To"]=payload.to_email
+    # Set plain text version
+    msg.set_content(bill_email_body_text(b))
+    # Set HTML version (preferred by most email clients)
+    msg.add_alternative(bill_email_body_html(b), subtype='html')
     try:
         with smtplib.SMTP(smtp_server,smtp_port) as server:
             server.starttls(); server.login(smtp_username,smtp_password); server.send_message(msg)
