@@ -118,6 +118,34 @@ function go(id) {
 
   page.classList.add("active");
 
+  // Update active state for navigation buttons
+  document.querySelectorAll(".bottom button").forEach(btn => {
+    btn.classList.remove("active");
+  });
+
+  // Map page IDs to navigation button actions
+  const navMap = {
+    adminDashboard: 'adminDashboard',
+    medicinesPage: 'medicinesPage',
+    stockPage: 'stockPage',
+    stockInventoryPage: 'stockPage',
+    reportsPage: 'reportsPage',
+    billHistoryPage: 'billHistoryPage',
+    usersPage: 'usersPage',
+    newBillPage: 'newBillPage',
+    cartPage: 'cartPage'
+  };
+
+  const targetNav = navMap[id];
+  if (targetNav) {
+    document.querySelectorAll(".bottom button").forEach(btn => {
+      const onclick = btn.getAttribute("onclick");
+      if (onclick && onclick.includes(targetNav)) {
+        btn.classList.add("active");
+      }
+    });
+  }
+
   if ($("appTitle")) {
     $("appTitle").textContent = page.querySelector("h2")?.textContent || "Pharmacy";
   }
@@ -134,6 +162,14 @@ function go(id) {
     }
 
     setTimeout(loadBills, 100);
+  }
+
+  if (id === "stockInventoryPage") {
+    setTimeout(renderStockInventory, 100);
+  }
+
+  if (id === "expiryAlertsPage") {
+    setTimeout(loadExpiryAlerts, 100);
   }
 }
 
@@ -192,9 +228,8 @@ function renderMedicines() {
           <b>${m.name} ${m.strength || ""}</b>
           <p>
             ${m.category || ""} • ${m.manufacturer || ""}<br/>
-            Stock: <b>${m.total_stock}</b> • 
-            Exp: ${m.nearest_expiry || "-"} • 
-            Price: ${money(m.unit_price)}
+            Stock: <b>${m.total_stock}</b> •
+            Exp: ${m.nearest_expiry || "-"}
           </p>
           <span class="pill ${m.is_active ? "" : "red"}">
             ${m.is_active ? "Active" : "Inactive"}
@@ -202,15 +237,111 @@ function renderMedicines() {
         </div>
 
         <div class="actions">
+          <button onclick="toggleBatches(${m.medicine_id})" style="background: #10b981; color: white;">View Stock</button>
           <button onclick="editMed(${m.medicine_id})">Edit</button>
           <button onclick="toggleMed(${m.medicine_id})">
             ${m.is_active ? "Disable" : "Enable"}
           </button>
         </div>
       </div>
+      <div id="batches-${m.medicine_id}" class="batches-container" style="display: none;"></div>
     `
       )
       .join("") || '<p class="muted">No medicines found.</p>';
+}
+
+async function toggleBatches(medicineId) {
+  const container = $(`batches-${medicineId}`);
+  if (!container) return;
+
+  if (container.style.display === "none") {
+    // Load and show batches
+    container.innerHTML = '<p class="muted">Loading batches...</p>';
+    container.style.display = "block";
+    
+    try {
+      const batches = await api(`/api/medicines/${medicineId}/batches?active_only=0`);
+      
+      if (batches.length === 0) {
+        container.innerHTML = '<p class="muted" style="padding: 1rem;">No batches found for this medicine.</p>';
+      } else {
+        container.innerHTML = `
+          <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 0.5rem 0;">
+            <h4 style="margin: 0 0 0.75rem 0; color: #495057; font-size: 0.9rem;">Batch Details (Sub-Stock)</h4>
+            ${batches.map(b => {
+              const isExpired = new Date(b.expiry_date) < new Date();
+              const isExpiringSoon = !isExpired && new Date(b.expiry_date) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+              const stockStatus = b.quantity_available === 0 ? 'red' : isExpired ? 'red' : isExpiringSoon ? 'orange' : '';
+              
+              return `
+                <div class="batch-item" style="background: white; padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 6px; border-left: 3px solid ${stockStatus ? (stockStatus === 'red' ? '#dc3545' : '#fd7e14') : '#28a745'};">
+                  <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div style="flex: 1;">
+                      <div style="font-weight: 600; color: #212529; margin-bottom: 0.25rem;">
+                        Batch: ${b.batch_no}
+                      </div>
+                      <div style="font-size: 0.85rem; color: #6c757d; line-height: 1.5;">
+                        <div>Quantity: <b style="color: ${b.quantity_available === 0 ? '#dc3545' : '#212529'}">${b.quantity_available}</b></div>
+                        <div>Expiry: <b style="color: ${isExpired ? '#dc3545' : isExpiringSoon ? '#fd7e14' : '#212529'}">${b.expiry_date}</b> ${isExpired ? '(Expired)' : isExpiringSoon ? '(Expiring Soon)' : ''}</div>
+                        <div>Price: <b>${money(b.unit_price)}</b></div>
+                        <div>Supplier: ${b.supplier || '-'}</div>
+                        <div>Added: ${b.date_of_adding}</div>
+                      </div>
+                    </div>
+                    <div style="margin-left: 0.5rem;">
+                      <button onclick="editBatch(${b.batch_id}, ${medicineId})" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Edit</button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+    } catch (e) {
+      container.innerHTML = `<p class="muted" style="padding: 1rem; color: #dc3545;">Error loading batches: ${e.message}</p>`;
+    }
+  } else {
+    // Hide batches
+    container.style.display = "none";
+  }
+}
+
+let editingBatchId = null;
+let editingBatchMedicineId = null;
+
+async function editBatch(batchId, medicineId) {
+  try {
+    // Fetch batch details
+    const batches = await api(`/api/medicines/${medicineId}/batches?active_only=0`);
+    const batch = batches.find(b => b.batch_id === batchId);
+    
+    if (!batch) {
+      toast("Batch not found");
+      return;
+    }
+    
+    editingBatchId = batchId;
+    editingBatchMedicineId = medicineId;
+    
+    // Populate form
+    $("stockMedicine").value = medicineId;
+    $("stockForm").date_of_adding.value = batch.date_of_adding;
+    $("stockForm").expiry_date.value = batch.expiry_date;
+    $("stockForm").quantity_available.value = batch.quantity_available;
+    $("stockForm").unit_price.value = batch.unit_price;
+    $("stockForm").supplier.value = batch.supplier || "";
+    
+    // Change form title
+    const formTitle = document.querySelector("#stockPage h2");
+    if (formTitle) {
+      formTitle.textContent = "Edit Batch Stock";
+    }
+    
+    go("stockPage");
+  } catch (e) {
+    toast("Error loading batch: " + e.message);
+  }
 }
 
 function showMedicineForm() {
@@ -263,7 +394,6 @@ if ($("medicineForm")) {
 
     let data = fd(e.target);
 
-    data.unit_price = +data.unit_price;
     data.reorder_level = +data.reorder_level;
     data.is_active = +data.is_active;
 
@@ -290,22 +420,59 @@ if ($("stockForm")) {
 
     data.medicine_id = +data.medicine_id;
     data.quantity_available = +data.quantity_available;
+    data.unit_price = +data.unit_price;
     data.purchase_price = +data.purchase_price || 0;
     data.created_by = user.user_id;
 
-    await api("/api/batches", {
-      method: "POST",
-      body: JSON.stringify(data)
-    });
-
-    toast("Stock saved");
+    if (editingBatchId) {
+      // Update existing batch
+      await api(`/api/batches/${editingBatchId}`, {
+        method: "PUT",
+        body: JSON.stringify(data)
+      });
+      toast("Batch updated");
+      
+      // Reset editing state
+      editingBatchId = null;
+      editingBatchMedicineId = null;
+      
+      // Reset form title
+      const formTitle = document.querySelector("#stockPage h2");
+      if (formTitle) {
+        formTitle.textContent = "Add Stock";
+      }
+    } else {
+      // Create new batch
+      await api("/api/batches", {
+        method: "POST",
+        body: JSON.stringify(data)
+      });
+      toast("Stock saved");
+    }
 
     e.target.reset();
 
     await refreshAll();
 
-    go("adminDashboard");
+    go("medicinesPage");
   };
+}
+
+// Reset batch editing state when navigating to stock page for new entry
+function showStockForm() {
+  editingBatchId = null;
+  editingBatchMedicineId = null;
+  
+  if ($("stockForm")) {
+    $("stockForm").reset();
+  }
+  
+  const formTitle = document.querySelector("#stockPage h2");
+  if (formTitle) {
+    formTitle.textContent = "Add Stock";
+  }
+  
+  go("stockPage");
 }
 
 async function loadMovements() {
@@ -424,10 +591,126 @@ function renderAlerts(type, btn) {
       .join("") || '<p class="muted">No alerts.</p>';
 }
 
+/* ---------------- STOCK INVENTORY ---------------- */
+
+async function renderStockInventory() {
+  const searchTerm = ($("stockSearch")?.value || "").toLowerCase();
+  
+  const filteredMedicines = medicines.filter(m => 
+    m.is_active && 
+    (m.name.toLowerCase().includes(searchTerm) || 
+     (m.strength || "").toLowerCase().includes(searchTerm) ||
+     (m.manufacturer || "").toLowerCase().includes(searchTerm))
+  );
+
+  const el = $("stockInventoryList");
+  if (!el) return;
+
+  el.innerHTML = filteredMedicines
+    .map(m => {
+      const isLowStock = m.total_stock <= m.reorder_level;
+      return `
+        <div class="stock-item">
+          <div class="stock-info">
+            <b>${m.name} ${m.strength || ""}</b>
+            <p>${m.manufacturer || ""}</p>
+          </div>
+          <div class="stock-qty">
+            <b>${m.total_stock}</b>
+          </div>
+          <div class="stock-status">
+            <span class="pill ${isLowStock ? 'orange' : ''}">${isLowStock ? 'Yes' : 'No'}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("") || '<p class="muted">No medicines found.</p>';
+}
+
+/* ---------------- EXPIRY ALERTS ---------------- */
+
+let expiryAlertsCache = {};
+
+async function loadExpiryAlerts() {
+  try {
+    expiryAlertsCache = await api("/api/alerts");
+    renderExpiryAlerts("expiring_soon");
+  } catch (e) {
+    console.warn("Could not load expiry alerts:", e.message);
+  }
+}
+
+function renderExpiryAlerts(type, btn) {
+  if (btn) {
+    document.querySelectorAll("#expiryAlertsPage .seg button").forEach(b => {
+      b.classList.remove("active");
+    });
+    btn.classList.add("active");
+  }
+
+  const el = $("expiryAlertsList");
+  if (!el) return;
+
+  let rows = [];
+  
+  if (type === "all") {
+    rows = [
+      ...(expiryAlertsCache.expiring_soon || []),
+      ...(expiryAlertsCache.expired || [])
+    ];
+  } else {
+    rows = expiryAlertsCache[type] || [];
+  }
+
+  el.innerHTML = rows
+    .map(x => {
+      const expiryDate = new Date(x.expiry_date);
+      const today = new Date();
+      const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+      
+      let daysText = "";
+      let pillClass = "";
+      
+      if (daysLeft < 0) {
+        daysText = "Expired";
+        pillClass = "red";
+      } else if (daysLeft === 0) {
+        daysText = "Expires Today";
+        pillClass = "red";
+      } else if (daysLeft <= 5) {
+        daysText = `${daysLeft} Days Left`;
+        pillClass = "red";
+      } else if (daysLeft <= 30) {
+        daysText = `${daysLeft} Days Left`;
+        pillClass = "orange";
+      } else {
+        daysText = `${daysLeft} Days Left`;
+        pillClass = "";
+      }
+
+      return `
+        <div class="expiry-item">
+          <div class="expiry-info">
+            <b>${x.name} ${x.strength || ""}</b>
+            <p>Batch: ${x.batch_no}</p>
+            <p class="muted">Exp: ${x.expiry_date}</p>
+          </div>
+          <div class="expiry-days">
+            <span class="pill ${pillClass}">${daysText}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("") || '<p class="muted">No expiry alerts.</p>';
+}
+
 /* ---------------- REPORTS ---------------- */
 
 async function loadReports() {
   try {
+    // Initialize date range picker
+    initReportDates();
+
     const r = await api("/api/reports");
 
     if ($("mSales")) {
@@ -450,36 +733,12 @@ async function loadReports() {
       $("rItems").textContent = r.top_medicines.reduce((a, b) => a + b.qty, 0);
     }
 
-    if ($("topMeds")) {
-      $("topMeds").innerHTML =
-        r.top_medicines
-          .map(
-            x => `
-          <div class="item">
-            <b>${x.medicine}</b>
-            <span class="pill">${x.qty} sold</span>
-          </div>
-        `
-          )
-          .join("") || '<p class="muted">No sales yet.</p>';
-    }
-
     const charts = r.charts || {};
 
-    drawChart("salesChartDay", charts.today || [], {
-      kind: "bar",
-      empty: "No sales today yet."
-    });
-
-    drawChart("salesChartWeek", charts.week || r.daily || [], {
+    // Load the date range chart
+    drawChart("salesChartRange", charts.daily || r.daily || [], {
       kind: "line",
-      empty: "No sales this week yet."
-    });
-
-    drawChart("salesChartMonth", charts.month || [], {
-      kind: "line",
-      empty: "No sales this month yet.",
-      skipLabels: 4
+      empty: "No sales in selected date range."
     });
   } catch (e) {
     console.warn("Could not load reports:", e.message);
@@ -603,6 +862,173 @@ function drawChart(canvasId, data, opt = {}) {
       );
     }
   });
+}
+
+/* ---------------- NEW REPORTS TAB FUNCTIONS ---------------- */
+
+function switchReportTab(tab, btn) {
+  // Update tab buttons
+  document.querySelectorAll('.report-tabs button').forEach(b => {
+    b.classList.remove('active');
+  });
+  btn.classList.add('active');
+
+  // Update tab content
+  document.querySelectorAll('.report-tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+
+  const tabMap = {
+    'sales': 'salesTab',
+    'stock': 'stockTab',
+    'lowstock': 'lowstockTab'
+  };
+
+  const targetTab = $(tabMap[tab]);
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
+
+  // Load data for the selected tab
+  if (tab === 'stock') {
+    loadStockMovementReport();
+  } else if (tab === 'lowstock') {
+    loadLowStockReport();
+  }
+}
+
+function initReportDates() {
+  const today = new Date();
+  const twentyOneDaysAgo = new Date(today);
+  twentyOneDaysAgo.setDate(today.getDate() - 21);
+
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  if ($('reportStartDate')) {
+    $('reportStartDate').value = formatDate(twentyOneDaysAgo);
+  }
+  if ($('reportEndDate')) {
+    $('reportEndDate').value = formatDate(today);
+  }
+}
+
+function updateReportDateRange() {
+  const startDate = $('reportStartDate')?.value;
+  const endDate = $('reportEndDate')?.value;
+
+  if (startDate && endDate) {
+    loadReportsWithDateRange(startDate, endDate);
+  }
+}
+
+async function loadReportsWithDateRange(startDate, endDate) {
+  try {
+    const r = await api(`/api/reports?start_date=${startDate}&end_date=${endDate}`);
+
+    if ($('rSales')) {
+      $('rSales').textContent = money(r.summary.total_sales);
+    }
+
+    if ($('rBills')) {
+      $('rBills').textContent = r.summary.total_bills;
+    }
+
+    if ($('rAvg')) {
+      $('rAvg').textContent = money(r.summary.avg_bill);
+    }
+
+    if ($('rItems')) {
+      $('rItems').textContent = r.top_medicines.reduce((a, b) => a + b.qty, 0);
+    }
+
+    const charts = r.charts || {};
+    drawChart('salesChartRange', charts.daily || r.daily || [], {
+      kind: 'line',
+      empty: 'No sales in selected date range.'
+    });
+  } catch (e) {
+    console.warn('Could not load reports with date range:', e.message);
+  }
+}
+
+async function loadStockMovementReport() {
+  try {
+    const startDate = $('reportStartDate')?.value;
+    const endDate = $('reportEndDate')?.value;
+    
+    let url = '/api/stock-movements';
+    if (startDate && endDate) {
+      url += `?start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    const rows = await api(url);
+
+    if ($('stockMovementReport')) {
+      $('stockMovementReport').innerHTML =
+        rows
+          .map(
+            m => `
+          <div class="item">
+            <div>
+              <b>${m.name} ${m.strength || ''}</b>
+              <p>
+                ${m.movement_type} • Batch ${m.batch_no || '-'} •
+                By ${m.created_by_name || '-'}<br/>
+                ${m.created_at}
+              </p>
+            </div>
+            <b class="${m.quantity_change < 0 ? 'danger' : 'price'}">
+              ${m.quantity_change > 0 ? '+' : ''}${m.quantity_change}
+            </b>
+          </div>
+        `
+          )
+          .join('') || '<div class="empty-state"><b>No Stock Movements</b><p>No stock movements found in the selected date range.</p></div>';
+    }
+  } catch (e) {
+    console.warn('Could not load stock movements:', e.message);
+    if ($('stockMovementReport')) {
+      $('stockMovementReport').innerHTML = '<div class="empty-state error-state"><b>Error</b><p>Could not load stock movements.</p></div>';
+    }
+  }
+}
+
+async function loadLowStockReport() {
+  try {
+    const alerts = await api('/api/alerts');
+    const lowStockItems = alerts.low_stock || [];
+
+    if ($('lowStockReport')) {
+      $('lowStockReport').innerHTML =
+        lowStockItems
+          .map(
+            item => `
+          <div class="item">
+            <div>
+              <b>${item.name} ${item.strength || ''}</b>
+              <p>
+                Current Stock: ${item.total_quantity || 0} •
+                Reorder Level: ${item.reorder_level || 0}<br/>
+                Category: ${item.category || 'N/A'}
+              </p>
+            </div>
+            <span class="pill orange">Low Stock</span>
+          </div>
+        `
+          )
+          .join('') || '<div class="empty-state"><b>No Low Stock Items</b><p>All medicines are adequately stocked.</p></div>';
+    }
+  } catch (e) {
+    console.warn('Could not load low stock report:', e.message);
+    if ($('lowStockReport')) {
+      $('lowStockReport').innerHTML = '<div class="empty-state error-state"><b>Error</b><p>Could not load low stock items.</p></div>';
+    }
+  }
 }
 
 /* ---------------- USERS ---------------- */

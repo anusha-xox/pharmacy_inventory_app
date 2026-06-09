@@ -51,7 +51,6 @@ def init_db():
         strength TEXT,
         category TEXT,
         manufacturer TEXT,
-        unit_price REAL NOT NULL DEFAULT 0,
         reorder_level INTEGER NOT NULL DEFAULT 10,
         is_active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -61,8 +60,9 @@ def init_db():
         medicine_id INTEGER NOT NULL,
         batch_no TEXT NOT NULL,
         quantity_available INTEGER NOT NULL CHECK(quantity_available >= 0),
+        date_of_adding TEXT NOT NULL,
         expiry_date TEXT NOT NULL,
-        purchase_price REAL DEFAULT 0,
+        unit_price REAL NOT NULL DEFAULT 0,
         supplier TEXT,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (medicine_id) REFERENCES medicines(medicine_id)
@@ -111,17 +111,31 @@ def init_db():
         conn.executemany("INSERT INTO users(name,username,password,role) VALUES(?,?,?,?)", [
             ("Admin", "admin", "demo123", "admin"), ("Desk User", "desk", "demo123", "desk")])
         meds = [
-            ("Paracetamol", "500mg", "Tablet", "Calpol", 15, 20),
-            ("Amoxicillin", "250mg", "Capsule", "Cipla", 32, 15),
-            ("Cetirizine", "10mg", "Tablet", "Dr Reddy", 8, 20),
-            ("Ibuprofen", "400mg", "Tablet", "Abbott", 20, 20),
-            ("Azithromycin", "500mg", "Tablet", "Sun Pharma", 45, 10),
+            ("Paracetamol", "500mg", "Tablet", "Calpol", 20),
+            ("Amoxicillin", "250mg", "Capsule", "Cipla", 15),
+            ("Cetirizine", "10mg", "Tablet", "Dr Reddy", 20),
+            ("Ibuprofen", "400mg", "Tablet", "Abbott", 20),
+            ("Azithromycin", "500mg", "Tablet", "Sun Pharma", 10),
         ]
-        conn.executemany("INSERT INTO medicines(name,strength,category,manufacturer,unit_price,reorder_level) VALUES(?,?,?,?,?,?)", meds)
-        batches = [(1,"PCT24A",100,"2026-08-31",8,"Medlife Pharma"),(1,"PCT24B",50,"2026-12-31",8.2,"Medlife Pharma"),(2,"AMX24B",80,"2026-10-15",18,"HealthRx"),(3,"CTZ24C",120,"2026-11-30",3,"MediSupply"),(4,"IBU24A",60,"2026-09-05",11,"HealthRx"),(5,"AZI24A",15,"2026-06-20",28,"MediSupply")]
-        conn.executemany("INSERT INTO medicine_batches(medicine_id,batch_no,quantity_available,expiry_date,purchase_price,supplier) VALUES(?,?,?,?,?,?)", batches)
-        for med_id, batch_no, qty, *_ in batches:
-            bid = conn.execute("SELECT batch_id FROM medicine_batches WHERE medicine_id=? AND batch_no=?", (med_id, batch_no)).fetchone()["batch_id"]
+        conn.executemany("INSERT INTO medicines(name,strength,category,manufacturer,reorder_level) VALUES(?,?,?,?,?)", meds)
+        # Sample batches with date_of_adding, expiry_date, unit_price
+        batches = [
+            (1, "2024-05-01", "2026-08-31", 100, 15, "Medlife Pharma"),
+            (1, "2024-06-15", "2026-12-31", 50, 15, "Medlife Pharma"),
+            (2, "2024-05-10", "2026-10-15", 80, 32, "HealthRx"),
+            (3, "2024-05-20", "2026-11-30", 120, 8, "MediSupply"),
+            (4, "2024-06-01", "2026-09-05", 60, 20, "HealthRx"),
+            (5, "2024-05-25", "2026-06-20", 15, 45, "MediSupply")
+        ]
+        for med_id, date_add, expiry, qty, unit_price, supplier in batches:
+            # Get medicine name for batch_no generation
+            med_name = conn.execute("SELECT name FROM medicines WHERE medicine_id=?", (med_id,)).fetchone()["name"]
+            batch_no = f"{date_add}_{med_name}_{expiry}"
+            conn.execute(
+                "INSERT INTO medicine_batches(medicine_id,batch_no,date_of_adding,expiry_date,quantity_available,unit_price,supplier) VALUES(?,?,?,?,?,?,?)",
+                (med_id, batch_no, date_add, expiry, qty, unit_price, supplier)
+            )
+            bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute("INSERT INTO stock_movements(medicine_id,batch_id,movement_type,quantity_change,notes,created_by) VALUES(?,?, 'stock_added', ?, 'Initial stock seed', 1)", (med_id, bid, qty))
     conn.commit(); conn.close()
 
@@ -133,11 +147,11 @@ class LoginIn(BaseModel):
 class UserIn(BaseModel):
     name: str; username: str; password: str = "demo123"; role: str
 class MedicineIn(BaseModel):
-    name: str; strength: Optional[str]=""; category: Optional[str]=""; manufacturer: Optional[str]=""; unit_price: float = Field(ge=0); reorder_level: int = Field(default=10, ge=0)
+    name: str; strength: Optional[str]=""; category: Optional[str]=""; manufacturer: Optional[str]=""; reorder_level: int = Field(default=10, ge=0)
 class MedicineUpdate(MedicineIn):
     is_active: int = 1
 class BatchIn(BaseModel):
-    medicine_id: int; batch_no: str; quantity_available: int = Field(ge=0); expiry_date: str; purchase_price: float = Field(default=0, ge=0); supplier: Optional[str]=""; created_by: int = 1
+    medicine_id: int; date_of_adding: str; expiry_date: str; quantity_available: int = Field(ge=0); unit_price: float = Field(ge=0); supplier: Optional[str]=""; created_by: int = 1
 class BillItemIn(BaseModel):
     medicine_id: int; quantity: int = Field(gt=0); batch_id: Optional[int] = None
 class BillIn(BaseModel):
@@ -186,10 +200,10 @@ def medicines(q: str = "", include_inactive: int = 0):
     GROUP BY m.medicine_id ORDER BY m.is_active DESC, m.name""", (f"%{q}%",)).fetchall(); conn.close(); return [d(r) for r in rows]
 @app.post("/api/medicines")
 def add_medicine(m:MedicineIn):
-    conn=db(); cur=conn.execute("INSERT INTO medicines(name,strength,category,manufacturer,unit_price,reorder_level) VALUES(?,?,?,?,?,?)", (m.name,m.strength,m.category,m.manufacturer,m.unit_price,m.reorder_level)); conn.commit(); conn.close(); return {"medicine_id":cur.lastrowid}
+    conn=db(); cur=conn.execute("INSERT INTO medicines(name,strength,category,manufacturer,reorder_level) VALUES(?,?,?,?,?)", (m.name,m.strength,m.category,m.manufacturer,m.reorder_level)); conn.commit(); conn.close(); return {"medicine_id":cur.lastrowid}
 @app.put("/api/medicines/{medicine_id}")
 def update_medicine(medicine_id:int,m:MedicineUpdate):
-    conn=db(); conn.execute("UPDATE medicines SET name=?,strength=?,category=?,manufacturer=?,unit_price=?,reorder_level=?,is_active=? WHERE medicine_id=?", (m.name,m.strength,m.category,m.manufacturer,m.unit_price,m.reorder_level,m.is_active,medicine_id)); conn.commit(); conn.close(); return {"ok":True}
+    conn=db(); conn.execute("UPDATE medicines SET name=?,strength=?,category=?,manufacturer=?,reorder_level=?,is_active=? WHERE medicine_id=?", (m.name,m.strength,m.category,m.manufacturer,m.reorder_level,m.is_active,medicine_id)); conn.commit(); conn.close(); return {"ok":True}
 @app.patch("/api/medicines/{medicine_id}/toggle")
 def toggle_medicine(medicine_id:int):
     conn=db(); conn.execute("UPDATE medicines SET is_active=CASE WHEN is_active=1 THEN 0 ELSE 1 END WHERE medicine_id=?",(medicine_id,)); conn.commit(); conn.close(); return {"ok":True}
@@ -200,8 +214,53 @@ def batches(medicine_id:int, active_only:int=1):
     rows=conn.execute(f"SELECT * FROM medicine_batches WHERE medicine_id=? {clause} ORDER BY expiry_date ASC", (medicine_id,)).fetchall(); conn.close(); return [d(r) for r in rows]
 @app.post("/api/batches")
 def add_batch(b:BatchIn):
-    conn=db(); cur=conn.execute("INSERT INTO medicine_batches(medicine_id,batch_no,quantity_available,expiry_date,purchase_price,supplier) VALUES(?,?,?,?,?,?)", (b.medicine_id,b.batch_no,b.quantity_available,b.expiry_date,b.purchase_price,b.supplier)); bid=cur.lastrowid
-    conn.execute("INSERT INTO stock_movements(medicine_id,batch_id,movement_type,quantity_change,notes,created_by) VALUES(?,?, 'stock_added', ?, 'Batch stock added', ?)", (b.medicine_id,bid,b.quantity_available,b.created_by)); conn.commit(); conn.close(); return {"batch_id":bid}
+    conn=db()
+    # Get medicine name to generate batch_no
+    med = conn.execute("SELECT name FROM medicines WHERE medicine_id=?", (b.medicine_id,)).fetchone()
+    if not med:
+        conn.close()
+        raise HTTPException(404, "Medicine not found")
+    
+    # Generate batch_no: date_of_adding_medicine + medicine name + expiry date
+    batch_no = f"{b.date_of_adding}_{med['name']}_{b.expiry_date}"
+    
+    cur=conn.execute("INSERT INTO medicine_batches(medicine_id,batch_no,date_of_adding,expiry_date,quantity_available,unit_price,supplier) VALUES(?,?,?,?,?,?,?)", (b.medicine_id,batch_no,b.date_of_adding,b.expiry_date,b.quantity_available,b.unit_price,b.supplier))
+    bid=cur.lastrowid
+    conn.execute("INSERT INTO stock_movements(medicine_id,batch_id,movement_type,quantity_change,notes,created_by) VALUES(?,?, 'stock_added', ?, 'Batch stock added', ?)", (b.medicine_id,bid,b.quantity_available,b.created_by))
+    conn.commit()
+    conn.close()
+    return {"batch_id":bid, "batch_no": batch_no}
+
+@app.put("/api/batches/{batch_id}")
+def update_batch(batch_id:int, b:BatchIn):
+    conn=db()
+    # Get existing batch to calculate quantity change
+    existing = conn.execute("SELECT * FROM medicine_batches WHERE batch_id=?", (batch_id,)).fetchone()
+    if not existing:
+        conn.close()
+        raise HTTPException(404, "Batch not found")
+    
+    # Get medicine name to regenerate batch_no
+    med = conn.execute("SELECT name FROM medicines WHERE medicine_id=?", (b.medicine_id,)).fetchone()
+    if not med:
+        conn.close()
+        raise HTTPException(404, "Medicine not found")
+    
+    batch_no = f"{b.date_of_adding}_{med['name']}_{b.expiry_date}"
+    
+    # Update batch
+    conn.execute("UPDATE medicine_batches SET medicine_id=?,batch_no=?,date_of_adding=?,expiry_date=?,quantity_available=?,unit_price=?,supplier=? WHERE batch_id=?",
+                 (b.medicine_id,batch_no,b.date_of_adding,b.expiry_date,b.quantity_available,b.unit_price,b.supplier,batch_id))
+    
+    # Record stock movement if quantity changed
+    qty_change = b.quantity_available - existing["quantity_available"]
+    if qty_change != 0:
+        conn.execute("INSERT INTO stock_movements(medicine_id,batch_id,movement_type,quantity_change,notes,created_by) VALUES(?,?, 'adjustment', ?, 'Batch quantity adjusted', ?)",
+                     (b.medicine_id,batch_id,qty_change,b.created_by))
+    
+    conn.commit()
+    conn.close()
+    return {"ok":True, "batch_no": batch_no}
 
 @app.get("/api/alerts")
 def alerts():
@@ -225,8 +284,10 @@ def create_bill(bill:BillIn):
                 batch_rows=conn.execute("SELECT * FROM medicine_batches WHERE medicine_id=? AND quantity_available>0 AND expiry_date>=date('now') ORDER BY expiry_date ASC", (item.medicine_id,)).fetchall()
             for batch in batch_rows:
                 if remaining<=0: break
-                qty=min(remaining,batch["quantity_available"]); line=qty*med["unit_price"]; subtotal+=line; remaining-=qty
-                deductions.append({"medicine_id":item.medicine_id,"batch_id":batch["batch_id"],"qty":qty,"unit_price":med["unit_price"],"line_total":line})
+                # Use unit_price from batch instead of medicine
+                unit_price = batch["unit_price"]
+                qty=min(remaining,batch["quantity_available"]); line=qty*unit_price; subtotal+=line; remaining-=qty
+                deductions.append({"medicine_id":item.medicine_id,"batch_id":batch["batch_id"],"qty":qty,"unit_price":unit_price,"line_total":line})
             if remaining>0: raise HTTPException(400, f"Not enough stock for {med['name']} {med['strength'] or ''}")
         discount=max(0,min(bill.discount,subtotal)); total=subtotal-discount
         bill_no=f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
