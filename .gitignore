@@ -4,3 +4,4 @@
 pharmacy_inventory_app_v2/__pycache__
 pharmacy_inventory_app_v1
 deployment_keys
+app/.env

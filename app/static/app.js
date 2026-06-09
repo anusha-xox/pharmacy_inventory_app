@@ -1086,6 +1086,51 @@ async function toggleUser(id) {
   loadUsers();
 }
 
+/* ---------------- BACKUP DOWNLOAD ---------------- */
+
+async function downloadBackup() {
+  try {
+    toast("Preparing backup... This may take a moment.");
+    
+    const response = await fetch('/api/download-backup');
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Download failed' }));
+      throw new Error(error.detail || 'Failed to download backup');
+    }
+    
+    // Get the blob from response
+    const blob = await response.blob();
+    
+    // Extract filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'pharmacy_backup.zip';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="([^"]+)"/i);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1];
+      }
+    }
+    
+    // Create download link and trigger download
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    
+    toast("Backup downloaded successfully!");
+  } catch (e) {
+    toast("Error: " + e.message);
+    console.error("Backup download error:", e);
+  }
+}
+
 /* ---------------- BILLING ---------------- */
 
 async function loadBillingMedicines() {

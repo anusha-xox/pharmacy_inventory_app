@@ -5,10 +5,13 @@ import sqlite3
 import smtplib
 from email.message import EmailMessage
 from typing import Optional
+import zipfile
+import io
+import shutil
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -611,6 +614,208 @@ def bill_email_body_html(b):
     </body>
     </html>
     """
+
+@app.get("/api/download-backup")
+def download_backup():
+    """Download a zip file containing the database and Excel export of all data"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        
+        # Create in-memory zip file
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Add the database file
+            if DB_PATH.exists():
+                zip_file.write(DB_PATH, 'pharmacy.db')
+            
+            # Create Excel workbook with all data
+            wb = Workbook()
+            wb.remove(wb.active)  # Remove default sheet
+            
+            conn = db()
+            
+            # Helper function to style headers
+            def style_header(ws, row=1):
+                for cell in ws[row]:
+                    cell.font = Font(bold=True, color="FFFFFF")
+                    cell.fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+            
+            # Sheet 1: Medicines
+            ws_medicines = wb.create_sheet("Medicines")
+            medicines_data = conn.execute("""
+                SELECT m.medicine_id, m.name, m.strength, m.category, m.manufacturer, 
+                       m.reorder_level, m.is_active, m.created_at,
+                       COALESCE(SUM(CASE WHEN b.expiry_date >= date('now') THEN b.quantity_available ELSE 0 END), 0) as total_stock
+                FROM medicines m
+                LEFT JOIN medicine_batches b ON b.medicine_id = m.medicine_id
+                GROUP BY m.medicine_id
+                ORDER BY m.name
+            """).fetchall()
+            
+            ws_medicines.append(['Medicine ID', 'Name', 'Strength', 'Category', 'Manufacturer', 
+                                'Reorder Level', 'Active', 'Created At', 'Total Stock'])
+            style_header(ws_medicines)
+            
+            for row in medicines_data:
+                ws_medicines.append([
+                    row['medicine_id'], row['name'], row['strength'] or '', 
+                    row['category'] or '', row['manufacturer'] or '',
+                    row['reorder_level'], 'Yes' if row['is_active'] else 'No',
+                    row['created_at'], row['total_stock']
+                ])
+            
+            # Sheet 2: Batches
+            ws_batches = wb.create_sheet("Medicine Batches")
+            batches_data = conn.execute("""
+                SELECT b.batch_id, m.name as medicine_name, b.batch_no, 
+                       b.quantity_available, b.date_of_adding, b.expiry_date,
+                       b.unit_price, b.supplier, b.created_at
+                FROM medicine_batches b
+                JOIN medicines m ON m.medicine_id = b.medicine_id
+                ORDER BY b.created_at DESC
+            """).fetchall()
+            
+            ws_batches.append(['Batch ID', 'Medicine', 'Batch No', 'Quantity Available', 
+                              'Date Added', 'Expiry Date', 'Unit Price', 'Supplier', 'Created At'])
+            style_header(ws_batches)
+            
+            for row in batches_data:
+                ws_batches.append([
+                    row['batch_id'], row['medicine_name'], row['batch_no'],
+                    row['quantity_available'], row['date_of_adding'], row['expiry_date'],
+                    row['unit_price'], row['supplier'] or '', row['created_at']
+                ])
+            
+            # Sheet 3: Bills
+            ws_bills = wb.create_sheet("Bills")
+            bills_data = conn.execute("""
+                SELECT b.bill_id, b.bill_no, b.customer_name, b.customer_email,
+                       b.subtotal, b.discount, b.total_amount, b.payment_method,
+                       u.name as created_by_name, b.created_at
+                FROM bills b
+                LEFT JOIN users u ON u.user_id = b.created_by
+                ORDER BY b.created_at DESC
+            """).fetchall()
+            
+            ws_bills.append(['Bill ID', 'Bill No', 'Customer Name', 'Customer Email',
+                            'Subtotal', 'Discount', 'Total Amount', 'Payment Method',
+                            'Created By', 'Created At'])
+            style_header(ws_bills)
+            
+            for row in bills_data:
+                ws_bills.append([
+                    row['bill_id'], row['bill_no'], row['customer_name'] or 'Walk-in Customer',
+                    row['customer_email'] or '', row['subtotal'], row['discount'],
+                    row['total_amount'], row['payment_method'], row['created_by_name'] or '',
+                    row['created_at']
+                ])
+            
+            # Sheet 4: Bill Items
+            ws_bill_items = wb.create_sheet("Bill Items")
+            bill_items_data = conn.execute("""
+                SELECT bi.bill_item_id, b.bill_no, m.name as medicine_name,
+                       mb.batch_no, bi.quantity, bi.unit_price, bi.line_total
+                FROM bill_items bi
+                JOIN bills b ON b.bill_id = bi.bill_id
+                JOIN medicines m ON m.medicine_id = bi.medicine_id
+                JOIN medicine_batches mb ON mb.batch_id = bi.batch_id
+                ORDER BY b.created_at DESC
+            """).fetchall()
+            
+            ws_bill_items.append(['Item ID', 'Bill No', 'Medicine', 'Batch No',
+                                 'Quantity', 'Unit Price', 'Line Total'])
+            style_header(ws_bill_items)
+            
+            for row in bill_items_data:
+                ws_bill_items.append([
+                    row['bill_item_id'], row['bill_no'], row['medicine_name'],
+                    row['batch_no'], row['quantity'], row['unit_price'], row['line_total']
+                ])
+            
+            # Sheet 5: Stock Movements
+            ws_movements = wb.create_sheet("Stock Movements")
+            movements_data = conn.execute("""
+                SELECT sm.movement_id, m.name as medicine_name, mb.batch_no,
+                       sm.movement_type, sm.quantity_change, sm.reference_id,
+                       sm.notes, u.name as created_by_name, sm.created_at
+                FROM stock_movements sm
+                JOIN medicines m ON m.medicine_id = sm.medicine_id
+                LEFT JOIN medicine_batches mb ON mb.batch_id = sm.batch_id
+                LEFT JOIN users u ON u.user_id = sm.created_by
+                ORDER BY sm.created_at DESC
+                LIMIT 500
+            """).fetchall()
+            
+            ws_movements.append(['Movement ID', 'Medicine', 'Batch No', 'Movement Type',
+                                'Quantity Change', 'Reference ID', 'Notes', 'Created By', 'Created At'])
+            style_header(ws_movements)
+            
+            for row in movements_data:
+                ws_movements.append([
+                    row['movement_id'], row['medicine_name'], row['batch_no'] or '',
+                    row['movement_type'], row['quantity_change'], row['reference_id'] or '',
+                    row['notes'] or '', row['created_by_name'] or '', row['created_at']
+                ])
+            
+            # Sheet 6: Users
+            ws_users = wb.create_sheet("Users")
+            users_data = conn.execute("""
+                SELECT user_id, name, username, role, is_active, created_at
+                FROM users
+                ORDER BY role, name
+            """).fetchall()
+            
+            ws_users.append(['User ID', 'Name', 'Username', 'Role', 'Active', 'Created At'])
+            style_header(ws_users)
+            
+            for row in users_data:
+                ws_users.append([
+                    row['user_id'], row['name'], row['username'], row['role'],
+                    'Yes' if row['is_active'] else 'No', row['created_at']
+                ])
+            
+            conn.close()
+            
+            # Auto-adjust column widths for all sheets
+            for ws in wb.worksheets:
+                for column in ws.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    ws.column_dimensions[column_letter].width = adjusted_width
+            
+            # Save Excel to memory
+            excel_buffer = io.BytesIO()
+            wb.save(excel_buffer)
+            excel_buffer.seek(0)
+            
+            # Add Excel file to zip
+            zip_file.writestr('pharmacy_data.xlsx', excel_buffer.getvalue())
+        
+        # Prepare zip for download
+        zip_buffer.seek(0)
+        
+        # Generate filename with timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'pharmacy_backup_{timestamp}.zip'
+        
+        return StreamingResponse(
+            zip_buffer,
+            media_type='application/zip',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+        )
+        
+    except Exception as e:
+        raise HTTPException(500, f"Failed to create backup: {str(e)}")
 
 @app.post("/api/bills/{bill_id}/email")
 def email_bill(bill_id:int, payload:EmailBillIn):
