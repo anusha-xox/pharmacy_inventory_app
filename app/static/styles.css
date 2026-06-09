@@ -547,6 +547,84 @@ canvas{
   margin-top: 14px;
 }
 
+/* Bill Breakdown Styles */
+.bill-breakdown {
+  margin-top: 20px;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.bill-breakdown h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.breakdown-table thead {
+  background: #f9fafb;
+}
+
+.breakdown-table th {
+  padding: 10px 8px;
+  text-align: left;
+  color: #374151;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--line);
+}
+
+.breakdown-table th:nth-child(3),
+.breakdown-table th:nth-child(4),
+.breakdown-table th:nth-child(5) {
+  text-align: right;
+}
+
+.breakdown-table td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.breakdown-table td:nth-child(3),
+.breakdown-table td:nth-child(4),
+.breakdown-table td:nth-child(5) {
+  text-align: right;
+}
+
+.breakdown-table tbody tr:last-child td {
+  border-bottom: 2px solid var(--line);
+}
+
+.breakdown-table tfoot td {
+  padding: 10px 8px;
+  font-weight: 600;
+  border-bottom: none;
+}
+
+.breakdown-table tfoot .total-row td {
+  padding-top: 12px;
+  border-top: 2px solid var(--line);
+  font-size: 16px;
+  color: var(--blue);
+}
+
+.breakdown-table small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 #successBill h3 {
   font-size: 20px;
   margin: 0 0 10px;

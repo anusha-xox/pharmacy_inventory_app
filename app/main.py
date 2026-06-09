@@ -140,6 +140,13 @@ def init_db():
             )
             bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute("INSERT INTO stock_movements(medicine_id,batch_id,movement_type,quantity_change,notes,created_by) VALUES(?,?, 'stock_added', ?, 'Initial stock seed', 1)", (med_id, bid, qty))
+    # Add customer_phone column if it doesn't exist
+    try:
+        conn.execute("ALTER TABLE bills ADD COLUMN customer_phone TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
     conn.commit(); conn.close()
 
 
@@ -158,7 +165,7 @@ class BatchIn(BaseModel):
 class BillItemIn(BaseModel):
     medicine_id: int; quantity: int = Field(gt=0); batch_id: Optional[int] = None
 class BillIn(BaseModel):
-    customer_name: Optional[str]="Walk-in Customer"; customer_email: Optional[str]=""; created_by: int = 2; items: list[BillItemIn]; discount: float = 0; payment_method: str = "Cash"
+    customer_name: Optional[str]="Walk-in Customer"; customer_email: Optional[str]=""; customer_phone: Optional[str]=""; created_by: int = 2; items: list[BillItemIn]; discount: float = 0; payment_method: str = "Cash"
 class EmailBillIn(BaseModel):
     to_email: str
     smtp_username: Optional[str] = None
@@ -294,7 +301,7 @@ def create_bill(bill:BillIn):
             if remaining>0: raise HTTPException(400, f"Not enough stock for {med['name']} {med['strength'] or ''}")
         discount=max(0,min(bill.discount,subtotal)); total=subtotal-discount
         bill_no=f"INV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        cur=conn.execute("INSERT INTO bills(bill_no,customer_name,customer_email,subtotal,discount,total_amount,payment_method,created_by) VALUES(?,?,?,?,?,?,?,?)", (bill_no,bill.customer_name,bill.customer_email,subtotal,discount,total,bill.payment_method,bill.created_by)); bill_id=cur.lastrowid
+        cur=conn.execute("INSERT INTO bills(bill_no,customer_name,customer_email,customer_phone,subtotal,discount,total_amount,payment_method,created_by) VALUES(?,?,?,?,?,?,?,?,?)", (bill_no,bill.customer_name,bill.customer_email,bill.customer_phone,subtotal,discount,total,bill.payment_method,bill.created_by)); bill_id=cur.lastrowid
         for x in deductions:
             conn.execute("UPDATE medicine_batches SET quantity_available=quantity_available-? WHERE batch_id=?", (x["qty"],x["batch_id"]))
             conn.execute("INSERT INTO bill_items(bill_id,medicine_id,batch_id,quantity,unit_price,line_total) VALUES(?,?,?,?,?,?)", (bill_id,x["medicine_id"],x["batch_id"],x["qty"],x["unit_price"],x["line_total"]))
@@ -310,18 +317,29 @@ def get_bill_data(conn,bill_id:int):
     return out
 
 @app.get("/api/bills")
-def get_bills():
+def get_bills(q: str = ""):
     conn = db()
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
 
-    bills = cur.execute("""
-        SELECT 
+    # Build search query
+    search_clause = ""
+    params = []
+    if q:
+        search_clause = """
+            WHERE (b.customer_name LIKE ? OR b.customer_email LIKE ? OR b.customer_phone LIKE ? OR b.bill_no LIKE ?)
+        """
+        search_param = f"%{q}%"
+        params = [search_param, search_param, search_param, search_param]
+
+    bills = cur.execute(f"""
+        SELECT
             b.bill_id,
             b.bill_id AS id,
             b.bill_no,
             b.customer_name,
             b.customer_email,
+            b.customer_phone,
             b.subtotal,
             b.discount,
             b.total_amount,
@@ -331,8 +349,9 @@ def get_bills():
             u.username AS created_by_username
         FROM bills b
         LEFT JOIN users u ON b.created_by = u.user_id
+        {search_clause}
         ORDER BY datetime(b.created_at) DESC
-    """).fetchall()
+    """, params).fetchall()
 
     result = []
 
@@ -482,7 +501,10 @@ def reports():
 
 def bill_email_body_text(b):
     """Plain text version for email clients that don't support HTML"""
-    lines=[f"Bill No: {b['bill_no']}", f"Customer: {b.get('customer_name') or 'Walk-in Customer'}", f"Date: {b['created_at']}", f"Payment: {b['payment_method']}", "", "Items:"]
+    lines=[f"Bill No: {b['bill_no']}", f"Customer: {b.get('customer_name') or 'Walk-in Customer'}"]
+    if b.get('customer_phone'):
+        lines.append(f"Phone: {b['customer_phone']}")
+    lines.extend([f"Date: {b['created_at']}", f"Payment: {b['payment_method']}", "", "Items:"])
     for i in b["items"]:
         lines.append(f"- {i['name']} {i.get('strength') or ''} | Batch {i['batch_no']} | Qty {i['quantity']} | ₹{i['unit_price']:.2f} | ₹{i['line_total']:.2f}")
     lines += ["", f"Subtotal: ₹{b['subtotal']:.2f}", f"Discount: ₹{b['discount']:.2f}", f"Total: ₹{b['total_amount']:.2f}", "", "Thank you."]
@@ -519,7 +541,7 @@ def bill_email_body_html(b):
                         <!-- Header -->
                         <tr>
                             <td style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 40px 30px; text-align: center;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Chandra Hi-Tech ENT Hospital</h1>
+                                <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 600;">Hospital Pharmacy</h1>
                                 <p style="margin: 10px 0 0 0; color: #dbeafe; font-size: 14px;">Pharmacy Invoice</p>
                             </td>
                         </tr>
@@ -546,6 +568,7 @@ def bill_email_body_html(b):
                                                         <td style="padding: 10px 0 5px 0;">
                                                             <span style="color: #6b7280; font-size: 13px;">Customer</span><br>
                                                             <strong style="color: #1f2937; font-size: 16px;">{b.get('customer_name') or 'Walk-in Customer'}</strong>
+                                                            {f'<br><span style="color: #6b7280; font-size: 13px;">Phone: {b["customer_phone"]}</span>' if b.get('customer_phone') else ''}
                                                         </td>
                                                         <td style="padding: 10px 0 5px 0; text-align: right;">
                                                             <span style="color: #6b7280; font-size: 13px;">Payment Method</span><br>
@@ -604,7 +627,7 @@ def bill_email_body_html(b):
                     <table width="600" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
                         <tr>
                             <td style="text-align: center; color: #9ca3af; font-size: 12px; padding: 20px;">
-                                <p style="margin: 0;">This is an automated email from Chandra Hi-Tech ENT Hospital Pharmacy System.</p>
+                                <p style="margin: 0;">This is an automated email from Hospital Pharmacy System.</p>
                             </td>
                         </tr>
                     </table>

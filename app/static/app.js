@@ -1012,7 +1012,7 @@ async function loadLowStockReport() {
             <div>
               <b>${item.name} ${item.strength || ''}</b>
               <p>
-                Current Stock: ${item.total_quantity || 0} •
+                Current Stock: ${item.total_stock || 0} •
                 Reorder Level: ${item.reorder_level || 0}<br/>
                 Category: ${item.category || 'N/A'}
               </p>
@@ -1373,6 +1373,7 @@ async function confirmBill() {
     const body = {
       customer_name: $("custName")?.value || "Walk-in Customer",
       customer_email: $("custEmail")?.value || "",
+      customer_phone: $("custPhone")?.value || "",
       created_by: user.user_id,
       discount: +$("discount")?.value || 0,
       payment_method: $("payment")?.value || "Cash",
@@ -1411,7 +1412,306 @@ function renderSuccess(b) {
     <p>Date: ${b.created_at}</p>
     <p>Payment: ${b.payment_method}</p>
     <p>Customer: ${b.customer_name || "-"}</p>
+    ${b.customer_phone ? `<p>Phone: ${b.customer_phone}</p>` : ''}
   `;
+
+  // Render breakdown
+  if ($("billBreakdown") && b.items) {
+    $("billBreakdown").innerHTML = `
+      <div class="bill-breakdown">
+        <h3>Bill Breakdown</h3>
+        <table class="breakdown-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Batch</th>
+              <th>Qty</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${b.items.map(item => `
+              <tr>
+                <td>
+                  <strong>${item.name} ${item.strength || ''}</strong>
+                </td>
+                <td><small>${item.batch_no}</small></td>
+                <td>${item.quantity}</td>
+                <td>${money(item.unit_price)}</td>
+                <td><strong>${money(item.line_total)}</strong></td>
+              </tr>
+            `).join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" style="text-align: right;">Subtotal:</td>
+              <td><strong>${money(b.subtotal)}</strong></td>
+            </tr>
+            ${b.discount > 0 ? `
+            <tr>
+              <td colspan="4" style="text-align: right;">Discount:</td>
+              <td><strong>- ${money(b.discount)}</strong></td>
+            </tr>
+            ` : ''}
+            <tr class="total-row">
+              <td colspan="4" style="text-align: right;"><strong>Total Amount:</strong></td>
+              <td><strong>${money(b.total_amount)}</strong></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+  }
+}
+
+function toggleBreakdown() {
+  const breakdown = $("billBreakdown");
+  if (!breakdown) return;
+  
+  const btn = event.target;
+  if (breakdown.style.display === "none") {
+    breakdown.style.display = "block";
+    btn.textContent = "Hide Breakdown";
+  } else {
+    breakdown.style.display = "none";
+    btn.textContent = "View Breakdown";
+  }
+}
+
+function printBillBreakdown() {
+  if (!lastBill) {
+    toast("No bill to print");
+    return;
+  }
+
+  // Create a print-friendly version
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    toast("Please allow popups to print");
+    return;
+  }
+
+  const itemsHtml = lastBill.items.map(item => `
+    <tr>
+      <td>
+        <strong>${item.name} ${item.strength || ''}</strong><br>
+        <small style="color: #6b7280;">Batch: ${item.batch_no}</small>
+      </td>
+      <td style="text-align: center;">${item.quantity}</td>
+      <td style="text-align: right;">${money(item.unit_price)}</td>
+      <td style="text-align: right;"><strong>${money(item.line_total)}</strong></td>
+    </tr>
+  `).join('');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Bill ${lastBill.bill_no}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+          padding: 40px;
+          max-width: 800px;
+          margin: 0 auto;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
+          border-bottom: 3px solid #3b82f6;
+        }
+        .header h1 {
+          color: #1f2937;
+          font-size: 28px;
+          margin-bottom: 5px;
+        }
+        .header p {
+          color: #6b7280;
+          font-size: 14px;
+        }
+        .bill-info {
+          background: #f0f9ff;
+          border-left: 4px solid #3b82f6;
+          padding: 20px;
+          margin-bottom: 30px;
+          border-radius: 4px;
+        }
+        .bill-info table {
+          width: 100%;
+        }
+        .bill-info td {
+          padding: 8px 0;
+        }
+        .bill-info .label {
+          color: #6b7280;
+          font-size: 13px;
+        }
+        .bill-info .value {
+          color: #1f2937;
+          font-weight: 600;
+          font-size: 15px;
+        }
+        .items-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 20px;
+        }
+        .items-table thead {
+          background: #f9fafb;
+        }
+        .items-table th {
+          padding: 12px;
+          text-align: left;
+          color: #374151;
+          font-weight: 600;
+          font-size: 13px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          border-bottom: 2px solid #e5e7eb;
+        }
+        .items-table td {
+          padding: 12px;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        .items-table tbody tr:last-child td {
+          border-bottom: 2px solid #e5e7eb;
+        }
+        .totals {
+          margin-top: 20px;
+          text-align: right;
+        }
+        .totals table {
+          margin-left: auto;
+          min-width: 300px;
+        }
+        .totals td {
+          padding: 8px 12px;
+        }
+        .totals .label {
+          color: #6b7280;
+        }
+        .totals .value {
+          font-weight: 500;
+          color: #1f2937;
+        }
+        .totals .total-row {
+          border-top: 2px solid #e5e7eb;
+          padding-top: 12px;
+        }
+        .totals .total-row .label {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1f2937;
+        }
+        .totals .total-row .value {
+          font-size: 20px;
+          font-weight: 700;
+          color: #3b82f6;
+        }
+        .footer {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 1px solid #e5e7eb;
+          text-align: center;
+          color: #6b7280;
+          font-size: 13px;
+        }
+        @media print {
+          body { padding: 20px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>Hospital Pharmacy</h1>
+        <p>Pharmacy Invoice</p>
+      </div>
+
+      <div class="bill-info">
+        <table>
+          <tr>
+            <td>
+              <div class="label">Bill Number</div>
+              <div class="value">${lastBill.bill_no}</div>
+            </td>
+            <td style="text-align: right;">
+              <div class="label">Date</div>
+              <div class="value">${lastBill.created_at}</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class="label">Customer</div>
+              <div class="value">${lastBill.customer_name || 'Walk-in Customer'}</div>
+            </td>
+            <td style="text-align: right;">
+              <div class="label">Payment Method</div>
+              <div class="value">${lastBill.payment_method}</div>
+            </td>
+          </tr>
+          ${lastBill.customer_phone ? `
+          <tr>
+            <td colspan="2">
+              <div class="label">Phone</div>
+              <div class="value">${lastBill.customer_phone}</div>
+            </td>
+          </tr>
+          ` : ''}
+        </table>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th style="text-align: center;">Qty</th>
+            <th style="text-align: right;">Price</th>
+            <th style="text-align: right;">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <table>
+          <tr>
+            <td class="label">Subtotal:</td>
+            <td class="value">${money(lastBill.subtotal)}</td>
+          </tr>
+          ${lastBill.discount > 0 ? `
+          <tr>
+            <td class="label">Discount:</td>
+            <td class="value" style="color: #dc2626;">- ${money(lastBill.discount)}</td>
+          </tr>
+          ` : ''}
+          <tr class="total-row">
+            <td class="label">Total Amount:</td>
+            <td class="value">${money(lastBill.total_amount)}</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="footer">
+        <p>Thank you for your purchase!</p>
+        <p>For any queries, please contact us at the hospital pharmacy.</p>
+      </div>
+
+      <script>
+        window.onload = function() {
+          window.print();
+        };
+      </script>
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
 }
 
 async function shareLastBill() {
@@ -1475,7 +1775,8 @@ async function loadBills() {
   `;
 
   try {
-    const response = await fetch("/api/bills");
+    const searchQuery = $("billSearch")?.value || "";
+    const response = await fetch(`/api/bills?q=${encodeURIComponent(searchQuery)}`);
 
     if (!response.ok) {
       throw new Error("Failed to fetch bills");

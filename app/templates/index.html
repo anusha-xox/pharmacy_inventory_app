@@ -331,6 +331,7 @@
 
       <input id="custName" placeholder="Customer name"/>
       <input id="custEmail" placeholder="Customer email for bill sharing"/>
+      <input id="custPhone" placeholder="Customer phone number"/>
       <input id="discount" type="number" value="0" placeholder="Discount ₹" oninput="renderCart()"/>
 
       <select id="payment">
@@ -354,15 +355,19 @@
 
       <div id="successBill"></div>
 
-      <button onclick="window.print()">Print</button>
-      <button class="primary" onclick="shareLastBill()">Share via Gmail SMTP</button>
+      <button onclick="toggleBreakdown()">View Breakdown</button>
+      <div id="billBreakdown" style="display: none;"></div>
+
+      <button onclick="printBillBreakdown()">Print</button>
+      <button onclick="shareLastBill()">Share via Gmail SMTP</button>
       <button onclick="go('newBillPage')">New Bill</button>
-      <button onclick="go('billHistoryPage')">Back to Bills</button>
+      <button class="primary" onclick="go('billHistoryPage')">Back to Bills</button>
     </section>
 
     <!-- SHARED: BILL HISTORY -->
     <section id="billHistoryPage" class="page shared-page">
       <h2>Bill History</h2>
+      <input id="billSearch" oninput="loadBills()" placeholder="Search by name, email, or bill number"/>
       <div id="billHistory" class="list"></div>
     </section>
 
