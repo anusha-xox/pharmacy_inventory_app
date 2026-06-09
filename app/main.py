@@ -242,10 +242,78 @@ def get_bill_data(conn,bill_id:int):
     bill=conn.execute("SELECT b.*,u.name created_by_name FROM bills b LEFT JOIN users u ON u.user_id=b.created_by WHERE bill_id=?", (bill_id,)).fetchone()
     if not bill: raise HTTPException(404,"Bill not found")
     items=conn.execute("""SELECT bi.*,m.name,m.strength,mb.batch_no,mb.expiry_date FROM bill_items bi JOIN medicines m ON m.medicine_id=bi.medicine_id JOIN medicine_batches mb ON mb.batch_id=bi.batch_id WHERE bi.bill_id=? ORDER BY bi.bill_item_id""", (bill_id,)).fetchall()
-    out=d(bill); out["items"]=[d(i) for i in items]; return out
+    out=d(bill); out["items"]=[d(i) for i in items]; 
+    return out
+
 @app.get("/api/bills")
-def bills():
-    conn=db(); rows=conn.execute("SELECT b.*,u.name created_by_name FROM bills b LEFT JOIN users u ON u.user_id=b.created_by ORDER BY b.created_at DESC LIMIT 100").fetchall(); conn.close(); return [d(r) for r in rows]
+def get_bills():
+    conn = db()
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    bills = cur.execute("""
+        SELECT 
+            b.bill_id,
+            b.bill_id AS id,
+            b.bill_no,
+            b.customer_name,
+            b.customer_email,
+            b.subtotal,
+            b.discount,
+            b.total_amount,
+            b.payment_method,
+            b.created_at,
+            u.name AS created_by_name,
+            u.username AS created_by_username
+        FROM bills b
+        LEFT JOIN users u ON b.created_by = u.user_id
+        ORDER BY datetime(b.created_at) DESC
+    """).fetchall()
+
+    result = []
+
+    for bill in bills:
+        items = cur.execute("""
+            SELECT 
+                bi.bill_item_id,
+                bi.bill_item_id AS id,
+                bi.medicine_id,
+                bi.batch_id,
+                bi.quantity,
+                bi.unit_price,
+                bi.line_total,
+                m.name AS medicine_name,
+                m.name,
+                m.strength,
+                mb.batch_no,
+                mb.expiry_date
+            FROM bill_items bi
+            LEFT JOIN medicines m ON bi.medicine_id = m.medicine_id
+            LEFT JOIN medicine_batches mb ON bi.batch_id = mb.batch_id
+            WHERE bi.bill_id = ?
+            ORDER BY bi.bill_item_id
+        """, (bill["bill_id"],)).fetchall()
+
+        result.append({
+            "bill_id": bill["bill_id"],
+            "id": bill["bill_id"],
+            "bill_no": bill["bill_no"],
+            "customer_name": bill["customer_name"] or "Walk-in Customer",
+            "customer_email": bill["customer_email"] or "",
+            "subtotal": bill["subtotal"] or 0,
+            "discount": bill["discount"] or 0,
+            "total_amount": bill["total_amount"] or 0,
+            "payment_method": bill["payment_method"] or "Cash",
+            "created_at": bill["created_at"],
+            "created_by_name": bill["created_by_name"] or "Unknown",
+            "created_by_username": bill["created_by_username"] or "",
+            "items": [dict(item) for item in items]
+        })
+
+    conn.close()
+    return result
+
+
 @app.get("/api/bills/{bill_id}")
 def bill_detail(bill_id:int):
     conn=db(); out=get_bill_data(conn,bill_id); conn.close(); return out
