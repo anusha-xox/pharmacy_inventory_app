@@ -1,0 +1,117 @@
+<mxfile host="app.diagrams.net" agent="ChatGPT">
+  <diagram id="hospital-inventory-architecture" name="Hospital Inventory System">
+    <mxGraphModel dx="1597" dy="951" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="users" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f0fe;strokeColor=#0f62fe;fontSize=18;fontStyle=1;arcSize=12;" value="Users" vertex="1">
+          <mxGeometry height="70" width="140" x="60" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="wf1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f4f4f4;strokeColor=#8d8d8d;fontSize=15;fontStyle=1;align=left;spacingLeft=18;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;WF 1: Admin creates and&amp;nbsp;&lt;div&gt;maintains master stock&lt;/div&gt;" vertex="1">
+          <mxGeometry height="300" width="1530" x="60" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="product" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#393939;fontSize=16;fontStyle=1;" value="Product / Medicine Entry&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Name, category, strength, price&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="190" x="330" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="photo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#edf5ff;strokeColor=#0f62fe;fontSize=16;fontStyle=1;" value="Medicine Photo Click / Upload&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Optional visual reference&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="220" x="570" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="invoice" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#edf5ff;strokeColor=#0f62fe;fontSize=16;fontStyle=1;" value="Invoice / Stock Photo Upload&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Batch, quantity, expiry, purchase details&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="220" x="570" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="validation" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4ce;strokeColor=#f1c21b;fontSize=16;fontStyle=1;" value="Admin Review &amp; Validation&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Correct extracted / entered details&lt;/font&gt;" vertex="1">
+          <mxGeometry height="80" width="220" x="960" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="master1" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#defbe6;strokeColor=#24a148;fontSize=16;fontStyle=1;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;Master DB Created / Updated&lt;div&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Medicine master + batch-wise stock + expiry&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="210" x="1350" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="wf2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f4f4f4;strokeColor=#8d8d8d;fontSize=15;fontStyle=1;align=left;spacingLeft=18;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;WF 2: Desk personnel bills medicines&amp;nbsp;&lt;div&gt;and stock is auto-deducted&lt;/div&gt;" vertex="1">
+          <mxGeometry height="400" width="1520" x="60" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="billingUser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0e2ff;strokeColor=#0f62fe;fontSize=16;fontStyle=1;" value="Desk Personnel" vertex="1">
+          <mxGeometry height="70" width="180" x="110" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="saleEntry" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#393939;fontSize=16;fontStyle=1;" value="Enter Product Sold&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Search/select available medicines&lt;/font&gt;" vertex="1">
+          <mxGeometry height="90" width="230" x="410" y="710" as="geometry" />
+        </mxCell>
+        <mxCell id="master2" parent="1" style="shape=cylinder;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#defbe6;strokeColor=#24a148;fontSize=16;fontStyle=1;" value="&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Master DB&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Available stock, batch &amp;amp; expiry&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="100" width="210" x="1040" y="670" as="geometry" />
+        </mxCell>
+        <mxCell id="selection" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#edf5ff;strokeColor=#0f62fe;fontSize=15;fontStyle=1;" value="Provides Valid Selection&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Only in-stock and non-expired batches&lt;/font&gt;" vertex="1">
+          <mxGeometry height="65" width="250" x="790" y="847.5" as="geometry" />
+        </mxCell>
+        <mxCell id="confirm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff4ce;strokeColor=#f1c21b;fontSize=16;fontStyle=1;" value="Confirm Sale / Generate Bill of Sale" vertex="1">
+          <mxGeometry height="60" width="280" x="385" y="857.5" as="geometry" />
+        </mxCell>
+        <mxCell id="deduct" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffd7d9;strokeColor=#da1e28;fontSize=16;fontStyle=1;" value="Quantity Deducted&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;FEFO: First Expiry, First Out&lt;/font&gt;" vertex="1">
+          <mxGeometry height="75" width="210" x="1260" y="842.5" as="geometry" />
+        </mxCell>
+        <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f2f4f8;strokeColor=#6f6f6f;fontSize=14;align=left;spacingLeft=14;" value="Key Rules&lt;br&gt;• Role-based access: Admin vs Desk&lt;br&gt;• No billing beyond available quantity&lt;br&gt;• Expired batches blocked from billing&lt;br&gt;• Audit every stock movement" vertex="1">
+          <mxGeometry height="130" width="300" x="1270" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="users" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#0f62fe;" target="admin" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="users" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#0f62fe;" target="billingUser" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="40" y="250" />
+              <mxPoint x="40" y="370" />
+              <mxPoint x="40" y="580" />
+            </Array>
+            <mxPoint x="310" y="179.61538461538476" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="admin" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;fontSize=12;" target="product" value="Admin">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="product" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;" target="photo" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="product" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;" target="invoice" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="photo" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;fontSize=12;" target="validation" value="Extract / enter details">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="invoice" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;fontSize=12;" target="validation" value="Extract / enter details">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="validation" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#24a148;fontSize=12;" target="master1" value="Save medicine + batch stock">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="billingUser" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;" target="saleEntry" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="saleEntry" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#0f62fe;fontSize=12;" target="master2" value="Request available medicines">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="master2" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#0f62fe;" target="selection" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="selection" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;fontSize=12;" target="saleEntry" value="Select product + quantity">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="saleEntry" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#393939;" target="confirm" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="confirm" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#da1e28;fontSize=12;" target="deduct" value="Confirmed sale">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="950" y="1000" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="deduct" style="endArrow=block;html=1;rounded=0;strokeWidth=2;strokeColor=#da1e28;fontSize=12;" target="master2" value="Update quantity">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="master1" style="endArrow=block;html=1;rounded=0;dashed=1;strokeWidth=2;strokeColor=#24a148;fontSize=12;" target="master2" value="Same master inventory">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d0e2ff;strokeColor=#0f62fe;fontSize=16;fontStyle=1;" value="Admin" vertex="1">
+          <mxGeometry height="60" width="160" x="110" y="350" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

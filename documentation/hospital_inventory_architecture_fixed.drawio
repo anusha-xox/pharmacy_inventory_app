@@ -1,0 +1,43 @@
+<mxfile host="app.diagrams.net" agent="ChatGPT">
+  <diagram id="hospital-inventory-arch" name="Hospital Inventory Architecture">
+    <mxGraphModel dx="658" dy="392" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" value="Hospital Inventory Management System&lt;br&gt;&lt;font style=&quot;font-size: 12px&quot;&gt;Mobile-friendly stock, expiry and billing deduction flow&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="520" x="230" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="schema_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;fontSize=16;fontStyle=1;" value="Suggested Master DB Structure" vertex="1">
+          <mxGeometry height="30" width="350" x="40" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_med" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;align=left;spacingLeft=10;fontSize=12;" value="&lt;b&gt;medicines&lt;/b&gt;&lt;br&gt;medicine_id PK&lt;br&gt;name, strength, category*&lt;br&gt;unit_price, active_flag" vertex="1">
+          <mxGeometry height="115" width="210" x="80" y="155" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_batch" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;align=left;spacingLeft=10;fontSize=12;" value="&lt;b&gt;medicine_batches&lt;/b&gt;&lt;br&gt;batch_id PK*, entry_date,&lt;br&gt;medicine_id FK&lt;br&gt;batch_no, quantity_available&lt;br&gt;expiry_date" vertex="1">
+          <mxGeometry height="130" width="230" x="380" y="147.5" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_bill" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;align=left;spacingLeft=10;fontSize=12;" value="&lt;b&gt;bills&lt;/b&gt;&lt;br&gt;bill_id PK&lt;br&gt;bill_no&lt;br&gt;created_by&lt;br&gt;total_amount, created_at" vertex="1">
+          <mxGeometry height="115" width="210" x="560" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_items" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;align=left;spacingLeft=10;fontSize=12;" value="&lt;b&gt;bill_items&lt;/b&gt;&lt;br&gt;bill_item_id PK&lt;br&gt;bill_id FK&lt;br&gt;medicine_id FK, batch_id FK&lt;br&gt;quantity, unit_price" vertex="1">
+          <mxGeometry height="130" width="230" x="860" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_stock" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;align=left;spacingLeft=10;fontSize=12;" value="&lt;b&gt;stock_movements&lt;/b&gt;&lt;br&gt;movement_id PK&lt;br&gt;medicine_id FK, batch_id FK&lt;br&gt;type: add/sale/adjustment&lt;br&gt;quantity_change, reference_id" vertex="1">
+          <mxGeometry height="135" width="260" x="845" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" edge="1" parent="1" source="tbl_med" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="tbl_batch" value="1-to-many">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" edge="1" parent="1" source="tbl_bill" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="tbl_items" value="1-to-many">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" edge="1" parent="1" source="tbl_batch" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="tbl_items" value="deducted batch">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" edge="1" parent="1" source="tbl_items" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" target="tbl_stock" value="audit trail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
