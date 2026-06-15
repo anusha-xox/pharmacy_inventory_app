@@ -16,8 +16,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
+# BASE_DIR = Path(__file__).resolve().parent
+# DB_PATH = BASE_DIR / "pharmacy.db"
+
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "pharmacy.db"
+
+DB_PATH = Path(os.getenv("DB_PATH", BASE_DIR / "pharmacy.db"))
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Hospital Pharmacy Inventory & Billing System")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
