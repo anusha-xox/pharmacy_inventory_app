@@ -970,5 +970,18 @@ canvas{
   color:var(--muted);
   line-height:1.4
 }
+.danger-btn {
+  width: 100%;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  margin-top: 10px;
+}
 
-/* Made with Bob */
+.danger-btn:hover {
+  background: #fee2e2;
+}
+
+.danger-btn:active {
+  transform: scale(0.99);
+}

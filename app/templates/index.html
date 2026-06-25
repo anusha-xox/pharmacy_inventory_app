@@ -14,20 +14,20 @@
 
   <!-- LOGIN -->
   <section id="loginScreen" class="screen active login-screen">
-    <img src="/static/hospital_logo.png" alt="Hospital Logo" class="logo-image">
-    <h1>Chandra Hi-Tech ENT Hospital</h1>
+    <div class="logo">✚</div>
+    <h1>Pharmacy</h1>
     <p>Inventory & Billing System</p>
 
-    <label>Role *</label>
+    <label>Role</label>
     <select id="loginRole">
       <option value="admin">Admin</option>
       <option value="desk">Desk Personnel</option>
     </select>
 
-    <label>Username *</label>
+    <label>Username</label>
     <input id="loginUser" value="admin" placeholder="admin or desk"/>
 
-    <label>Password *</label>
+    <label>Password</label>
     <input id="loginPass" type="password" value="demo123"/>
 
     <button class="primary" onclick="login()">Login</button>
@@ -69,38 +69,8 @@
         </div>
       </div>
 
-      <h3>Quick Actions</h3>
-      <div class="quick-actions">
-        <button class="action-card" onclick="go('stockInventoryPage')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-          <span>Stock / Inventory</span>
-        </button>
-        <button class="action-card" onclick="go('expiryAlertsPage')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span>Expiry Alerts</span>
-        </button>
-      </div>
-
       <h3>Recent Stock</h3>
       <div id="recentStock" class="list"></div>
-
-      <h3>Database Backup</h3>
-      <button class="primary" onclick="downloadBackup()" style="width: 100%; margin-top: 10px;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px; display: inline-block; vertical-align: middle; margin-right: 8px;">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        Download Database & Excel Backup
-      </button>
     </section>
 
     <!-- MEDICINES -->
@@ -119,28 +89,29 @@
       <h2 id="medFormTitle">Add Medicine</h2>
 
       <form id="medicineForm" class="form">
-        <label>Medicine Name *</label>
         <input name="name" placeholder="Medicine name" required/>
-        
-        <label>Strength</label>
-        <input name="strength" placeholder="e.g. 500mg"/>
-        
-        <label>Category</label>
+        <input name="strength" placeholder="Strength e.g. 500mg"/>
         <input name="category" placeholder="Category"/>
-        
-        <label>Brand / Manufacturer</label>
         <input name="manufacturer" placeholder="Brand / Manufacturer"/>
-        
-        <label>Reorder Level</label>
+        <input name="unit_price" type="number" step="0.01" placeholder="Unit price ₹" required/>
         <input name="reorder_level" type="number" value="10" placeholder="Low stock level"/>
 
-        <label>Status</label>
         <select name="is_active">
           <option value="1">Active</option>
           <option value="0">Inactive</option>
         </select>
 
         <button class="primary">Save Medicine</button>
+
+        <button
+          type="button"
+          id="deleteMedicineBtn"
+          class="danger-btn"
+          onclick="deleteMedicine()"
+          style="display:none;"
+        >
+          Delete Medicine
+        </button>
       </form>
     </section>
 
@@ -149,55 +120,15 @@
       <h2>Add Stock</h2>
 
       <form id="stockForm" class="form">
-        <label>Select Medicine *</label>
         <select id="stockMedicine" name="medicine_id" required></select>
-        
-        <label>Date of Adding Medicine *</label>
-        <input name="date_of_adding" type="date" required/>
-        
-        <label>Expiry Date *</label>
-        <input name="expiry_date" type="date" required/>
-        
-        <label>Quantity *</label>
+        <input name="batch_no" placeholder="Batch number" required/>
         <input name="quantity_available" type="number" placeholder="Quantity" required/>
-        
-        <label>Unit Price (₹) *</label>
-        <input name="unit_price" type="number" step="0.01" placeholder="Selling price per unit" required/>
-        
-        <label>Supplier</label>
-        <input name="supplier" placeholder="Supplier name"/>
-        
+        <input name="expiry_date" type="date" required/>
+        <input name="purchase_price" type="number" step="0.01" placeholder="Purchase price ₹"/>
+        <input name="supplier" placeholder="Supplier"/>
         <button class="primary">Save Stock</button>
       </form>
     </section>
-    <!-- STOCK INVENTORY LIST -->
-    <section id="stockInventoryPage" class="page admin-page">
-      <h2>Stock / Inventory</h2>
-
-      <input id="stockSearch" oninput="renderStockInventory()" placeholder="Search medicine"/>
-
-      <div class="stock-header">
-        <span>Medicine</span>
-        <span>Total Stock</span>
-        <span>Low Stock</span>
-      </div>
-
-      <div id="stockInventoryList" class="list"></div>
-    </section>
-
-    <!-- EXPIRY ALERTS DETAILED -->
-    <section id="expiryAlertsPage" class="page admin-page">
-      <h2>Expiry Alerts</h2>
-
-      <div class="seg">
-        <button onclick="renderExpiryAlerts('all',this)">All</button>
-        <button class="active" onclick="renderExpiryAlerts('expiring_soon',this)">Expiring Soon</button>
-        <button onclick="renderExpiryAlerts('expired',this)">Expired</button>
-      </div>
-
-      <div id="expiryAlertsList" class="list"></div>
-    </section>
-
 
     <!-- ALERTS -->
     <section id="alertsPage" class="page admin-page">
@@ -216,58 +147,53 @@
     <section id="reportsPage" class="page admin-page">
       <h2>Reports</h2>
 
-      <!-- Report Tabs -->
-      <div class="report-tabs">
-        <button class="active" onclick="switchReportTab('sales', this)">Sales Summary</button>
-        <button onclick="switchReportTab('stock', this)">Stock Movement</button>
-        <button onclick="switchReportTab('lowstock', this)">Low Stock</button>
-      </div>
-
-      <!-- Date Range Picker -->
-      <div class="date-range-picker">
-        <button class="date-icon" onclick="$('reportStartDate').showPicker()">📅</button>
-        <input type="date" id="reportStartDate" onchange="updateReportDateRange()"/>
-        <span>-</span>
-        <input type="date" id="reportEndDate" onchange="updateReportDateRange()"/>
-        <button class="date-icon" onclick="$('reportEndDate').showPicker()">📅</button>
-      </div>
-
-      <!-- Sales Summary Tab -->
-      <div id="salesTab" class="report-tab-content active">
-        <div class="report-metrics">
-          <div>
-            <span>Total Sales</span>
-            <b id="rSales">₹0</b>
-          </div>
-          <div>
-            <span>Total Bills</span>
-            <b id="rBills">0</b>
-          </div>
-          <div>
-            <span>Total Items Sold</span>
-            <b id="rItems">0</b>
-          </div>
-          <div>
-            <span>Average Bill Value</span>
-            <b id="rAvg">₹0</b>
-          </div>
+      <div class="metrics">
+        <div>
+          <span>30-day Sales</span>
+          <b id="rSales">₹0</b>
         </div>
-
-        <h3>Daily Sales</h3>
-        <div class="chart-card">
-          <canvas id="salesChartRange" height="170"></canvas>
+        <div>
+          <span>Total Bills</span>
+          <b id="rBills">0</b>
+        </div>
+        <div>
+          <span>Avg Bill</span>
+          <b id="rAvg">₹0</b>
+        </div>
+        <div>
+          <span>Items Sold</span>
+          <b id="rItems">-</b>
         </div>
       </div>
 
-      <!-- Stock Movement Tab -->
-      <div id="stockTab" class="report-tab-content">
-        <div id="stockMovementReport" class="list"></div>
+      <h3>Sales Graphs</h3>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <b>Today</b>
+          <span>Hourly sales</span>
+        </div>
+        <canvas id="salesChartDay" height="170"></canvas>
       </div>
 
-      <!-- Low Stock Tab -->
-      <div id="lowstockTab" class="report-tab-content">
-        <div id="lowStockReport" class="list"></div>
+      <div class="chart-card">
+        <div class="chart-head">
+          <b>This Week</b>
+          <span>Daily sales, last 7 days</span>
+        </div>
+        <canvas id="salesChartWeek" height="170"></canvas>
       </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <b>This Month</b>
+          <span>Daily sales, last 30 days</span>
+        </div>
+        <canvas id="salesChartMonth" height="170"></canvas>
+      </div>
+
+      <h3>Top Medicines</h3>
+      <div id="topMeds" class="list"></div>
     </section>
 
     <!-- MOVEMENTS -->
@@ -281,8 +207,8 @@
       <h2>User Management</h2>
 
       <form id="userForm" class="form small">
-        <input name="name" placeholder="Name *" required/>
-        <input name="username" placeholder="Username *" required/>
+        <input name="name" placeholder="Name" required/>
+        <input name="username" placeholder="Username" required/>
         <input name="password" value="demo123"/>
         <select name="role">
           <option value="admin">Admin</option>
@@ -331,7 +257,6 @@
 
       <input id="custName" placeholder="Customer name"/>
       <input id="custEmail" placeholder="Customer email for bill sharing"/>
-      <input id="custPhone" placeholder="Customer phone number"/>
       <input id="discount" type="number" value="0" placeholder="Discount ₹" oninput="renderCart()"/>
 
       <select id="payment">
@@ -355,105 +280,38 @@
 
       <div id="successBill"></div>
 
-      <button onclick="toggleBreakdown()">View Breakdown</button>
-      <div id="billBreakdown" style="display: none;"></div>
-
-      <button onclick="printBillBreakdown()">Print</button>
-      <button onclick="shareLastBill()">Share via Gmail SMTP</button>
+      <button onclick="window.print()">Print</button>
+      <button class="primary" onclick="shareLastBill()">Share via Gmail SMTP</button>
       <button onclick="go('newBillPage')">New Bill</button>
-      <button class="primary" onclick="go('billHistoryPage')">Back to Bills</button>
+      <button onclick="go('billHistoryPage')">Back to Bills</button>
     </section>
 
     <!-- SHARED: BILL HISTORY -->
     <section id="billHistoryPage" class="page shared-page">
       <h2>Bill History</h2>
-      <input id="billSearch" oninput="loadBills()" placeholder="Search by name, email, or bill number"/>
       <div id="billHistory" class="list"></div>
     </section>
 
     <!-- ADMIN NAV -->
     <nav id="adminNav" class="bottom">
-      <button onclick="go('adminDashboard')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-        <span>Home</span>
-      </button>
-      <button onclick="go('medicinesPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="7"/>
-          <rect x="14" y="3" width="7" height="7"/>
-          <rect x="14" y="14" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/>
-        </svg>
-        <span>Meds</span>
-      </button>
-      <button onclick="go('stockPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        <span>Stock</span>
-      </button>
-      <button onclick="go('reportsPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="20" x2="18" y2="10"/>
-          <line x1="12" y1="20" x2="12" y2="4"/>
-          <line x1="6" y1="20" x2="6" y2="14"/>
-        </svg>
-        <span>Reports</span>
-      </button>
-      <button onclick="go('billHistoryPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-        <span>Bills</span>
-      </button>
-      <button onclick="go('usersPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-          <circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        <span>Users</span>
-      </button>
+      <button onclick="go('adminDashboard')">⌂<span>Home</span></button>
+      <button onclick="go('medicinesPage')">▣<span>Meds</span></button>
+      <button onclick="go('stockPage')">＋<span>Stock</span></button>
+      <button onclick="go('reportsPage')">⌁<span>Reports</span></button>
+      <button onclick="go('billHistoryPage')">☰<span>Bills</span></button>
+      <button onclick="go('usersPage')">⋯<span>Users</span></button>
     </nav>
 
     <!-- DESK NAV -->
     <nav id="deskNav" class="bottom hidden">
-      <button onclick="go('newBillPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="m21 21-4.35-4.35"/>
-        </svg>
-        <span>Bill</span>
-      </button>
-      <button onclick="go('cartPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="9" cy="21" r="1"/>
-          <circle cx="20" cy="21" r="1"/>
-          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-        </svg>
-        <span>Cart</span>
-      </button>
-      <button onclick="go('billHistoryPage')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
-        <span>History</span>
-      </button>
+      <button onclick="go('newBillPage')">⌕<span>Bill</span></button>
+      <button onclick="go('cartPage')">🛒<span>Cart</span></button>
+      <button onclick="go('billHistoryPage')">☰<span>History</span></button>
     </nav>
 
   </section>
 </main>
 
-<script src="/static/app.js?v=4"></script>
+<script src="/static/app.js"></script>
 </body>
 </html>

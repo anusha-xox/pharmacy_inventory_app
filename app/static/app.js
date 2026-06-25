@@ -356,11 +356,16 @@ function showMedicineForm() {
     $("medicineForm").is_active.value = "1";
   }
 
+  if ($("deleteMedicineBtn")) {
+    $("deleteMedicineBtn").style.display = "none";
+  }
+
   go("medicineFormPage");
 }
 
 function editMed(id) {
-  const m = medicines.find(x => x.medicine_id === id);
+  const m = medicines.find(x => Number(x.medicine_id) === Number(id));
+
   if (!m) {
     toast("Medicine not found");
     return;
@@ -376,8 +381,13 @@ function editMed(id) {
     }
   });
 
+  if ($("deleteMedicineBtn")) {
+    $("deleteMedicineBtn").style.display = "block";
+  }
+
   go("medicineFormPage");
 }
+
 
 async function toggleMed(id) {
   await api(`/api/medicines/${id}/toggle`, {
@@ -386,6 +396,38 @@ async function toggleMed(id) {
 
   toast("Medicine status updated");
   loadMedicines();
+}
+
+async function deleteMedicine() {
+  if (!editingMedId) {
+    toast("No medicine selected");
+    return;
+  }
+
+  const med = medicines.find(x => Number(x.medicine_id) === Number(editingMedId));
+  const name = med ? `${med.name} ${med.strength || ""}` : "this medicine";
+
+  const confirmed = confirm(
+    `Delete ${name}?\n\nIf this medicine has bill history, it will be deactivated instead of permanently deleted.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const result = await api(`/api/medicines/${editingMedId}`, {
+      method: "DELETE"
+    });
+
+    toast(result.message || "Medicine deleted");
+
+    editingMedId = null;
+
+    await refreshAll();
+
+    go("medicinesPage");
+  } catch (e) {
+    toast(e.message);
+  }
 }
 
 if ($("medicineForm")) {

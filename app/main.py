@@ -864,3 +864,64 @@ def email_bill(bill_id:int, payload:EmailBillIn):
         return {"ok":True,"message":f"Bill shared with {payload.to_email}"}
     except Exception as e:
         raise HTTPException(500, f"Unable to send email: {e}")
+
+@app.delete("/api/medicines/{medicine_id}")
+def delete_medicine(medicine_id: int):
+    conn = db()
+
+    try:
+        med = conn.execute(
+            "SELECT * FROM medicines WHERE medicine_id=?",
+            (medicine_id,)
+        ).fetchone()
+
+        if not med:
+            raise HTTPException(404, "Medicine not found")
+
+        bill_count = conn.execute(
+            "SELECT COUNT(*) c FROM bill_items WHERE medicine_id=?",
+            (medicine_id,)
+        ).fetchone()["c"]
+
+        if bill_count > 0:
+            # Cannot delete permanently because old bills need this medicine reference
+            conn.execute(
+                "UPDATE medicines SET is_active=0 WHERE medicine_id=?",
+                (medicine_id,)
+            )
+            conn.commit()
+
+            return {
+                "ok": True,
+                "mode": "deactivated",
+                "message": "Medicine has bill history, so it was deactivated instead of permanently deleted."
+            }
+
+        # Delete stock movements first
+        conn.execute(
+            "DELETE FROM stock_movements WHERE medicine_id=?",
+            (medicine_id,)
+        )
+
+        # Delete batches
+        conn.execute(
+            "DELETE FROM medicine_batches WHERE medicine_id=?",
+            (medicine_id,)
+        )
+
+        # Delete medicine
+        conn.execute(
+            "DELETE FROM medicines WHERE medicine_id=?",
+            (medicine_id,)
+        )
+
+        conn.commit()
+
+        return {
+            "ok": True,
+            "mode": "deleted",
+            "message": "Medicine deleted successfully."
+        }
+
+    finally:
+        conn.close()
