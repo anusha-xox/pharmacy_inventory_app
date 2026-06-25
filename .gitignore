@@ -1,4 +1,5 @@
 .vscode
+.conda
 .DS_Store
 .env
 pharmacy_inventory_app_v2/__pycache__
