@@ -1,0 +1,13 @@
+{
+  "name": "chandra-hitech-ent-hospital",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Patient-facing website for Chandra Hi-Tech ENT Hospital, Jhansi",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
