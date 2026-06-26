@@ -204,6 +204,28 @@ def add_user(u:UserIn):
 def toggle_user(user_id:int):
     conn=db(); conn.execute("UPDATE users SET is_active = CASE WHEN is_active=1 THEN 0 ELSE 1 END WHERE user_id=?",(user_id,)); conn.commit(); conn.close(); return {"ok":True}
 
+@app.delete("/api/users/{user_id}")
+def delete_user(user_id:int):
+    conn=db()
+    try:
+        # Check if user exists
+        user = conn.execute("SELECT user_id, username FROM users WHERE user_id=?", (user_id,)).fetchone()
+        if not user:
+            raise HTTPException(404, "User not found")
+        
+        # Prevent deleting the last admin
+        admin_count = conn.execute("SELECT COUNT(*) as count FROM users WHERE role='admin' AND is_active=1").fetchone()[0]
+        user_role = conn.execute("SELECT role FROM users WHERE user_id=?", (user_id,)).fetchone()[0]
+        if user_role == 'admin' and admin_count <= 1:
+            raise HTTPException(400, "Cannot delete the last active admin user")
+        
+        # Delete the user
+        conn.execute("DELETE FROM users WHERE user_id=?", (user_id,))
+        conn.commit()
+        return {"message": "User deleted successfully"}
+    finally:
+        conn.close()
+
 @app.get("/api/medicines")
 def medicines(q: str = "", include_inactive: int = 0):
     conn=db(); active_clause = "" if include_inactive else "AND m.is_active=1"

@@ -1093,7 +1093,10 @@ async function loadUsers() {
               ${u.is_active ? "Active" : "Inactive"}
             </span>
           </div>
-          <button onclick="toggleUser(${u.user_id})">Toggle</button>
+          <div class="actions">
+            <button onclick="toggleUser(${u.user_id})">Toggle</button>
+            <button onclick="deleteUser(${u.user_id}, '${u.name}')" style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;">Delete</button>
+          </div>
         </div>
       `
         )
@@ -1126,6 +1129,25 @@ async function toggleUser(id) {
   });
 
   loadUsers();
+}
+
+async function deleteUser(id, name) {
+  const confirmed = confirm(
+    `Delete user "${name}"?\n\nThis action cannot be undone.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await api(`/api/users/${id}`, {
+      method: "DELETE"
+    });
+
+    toast("User deleted successfully");
+    loadUsers();
+  } catch (e) {
+    toast("Error: " + e.message);
+  }
 }
 
 /* ---------------- BACKUP DOWNLOAD ---------------- */

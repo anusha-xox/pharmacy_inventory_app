@@ -291,13 +291,25 @@
       <h2>User Management</h2>
 
       <form id="userForm" class="form small">
-        <input name="name" placeholder="Name *" required/>
-        <input name="username" placeholder="Username *" required/>
-        <input name="password" value="demo123"/>
-        <select name="role">
-          <option value="admin">Admin</option>
-          <option value="desk">Desk</option>
-        </select>
+        <div>
+          <small style="display: block; color: #6b7280; font-size: 11px; margin-bottom: 4px;">Name *</small>
+          <input name="name" placeholder="Name *" required/>
+        </div>
+        <div>
+          <small style="display: block; color: #6b7280; font-size: 11px; margin-bottom: 4px;">Username *</small>
+          <input name="username" placeholder="Username *" required/>
+        </div>
+        <div>
+          <small style="display: block; color: #6b7280; font-size: 11px; margin-bottom: 4px;">Password</small>
+          <input name="password" value="demo123"/>
+        </div>
+        <div>
+          <small style="display: block; color: #6b7280; font-size: 11px; margin-bottom: 4px;">Role</small>
+          <select name="role">
+            <option value="admin">Admin</option>
+            <option value="desk">Desk</option>
+          </select>
+        </div>
         <button class="primary">Add User</button>
       </form>
 
@@ -464,6 +476,6 @@
   </section>
 </main>
 
-<script src="/static/app.js?v=4"></script>
+<script src="/static/app.js?v=5"></script>
 </body>
 </html>
